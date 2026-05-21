@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+{% include "partials/_journey_stepper.html" %}
+
+<div class="page-header">
+    <h1><i class="bi bi-{{ page_icon }}"></i> {{ page_title }}</h1>
+    <p>This section is locked until you complete the steps below.</p>
+</div>
+
+<div class="locked-page-layout">
+    <div class="card locked-page-panel">
+        <div class="card-body">
+            <div class="lock-badge"><i class="bi bi-lock-fill"></i> Locked</div>
+            <h2 class="locked-page-title">{{ locked_title }}</h2>
+            <p class="locked-page-desc">
+                {{ locked_body }}
+                {% if required_step_label %}
+                You need <strong>{{ required_step_label }}</strong> before this page opens.
+                {% endif %}
+            </p>
+
+            {% if journey and journey.next_step_info %}
+            <div class="locked-page-cta">
+                <a href="{{ journey.next_step_info.url }}" class="btn btn-primary btn-lg">
+                    <i class="bi bi-{{ journey.next_step_info.icon }}"></i>
+                    {{ journey.next_step_info.cta }}
+                </a>
+                <a href="{% url 'users:dashboard' %}" class="btn btn-ghost btn-lg">
+                    <i class="bi bi-house-door"></i> Back to Dashboard
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-list-check"></i> Your journey progress</div>
+        <div class="card-body" style="padding:0;">
+            <ul class="journey-checklist">
+                {% for row in journey_checklist %}
+                <li class="{% if row.done %}done{% elif row.current %}current{% else %}pending{% endif %}">
+                    <span class="journey-check-icon">
+                        {% if row.done %}
+                        <i class="bi bi-check-circle-fill"></i>
+                        {% elif row.current %}
+                        <i class="bi bi-arrow-right-circle-fill"></i>
+                        {% else %}
+                        <i class="bi bi-circle"></i>
+                        {% endif %}
+                    </span>
+                    <span class="journey-check-label">{{ row.label }}</span>
+                    {% if row.current %}
+                    <span class="badge badge-primary" style="margin-left:auto;">Next</span>
+                    {% elif row.done %}
+                    <span class="badge badge-success" style="margin-left:auto;">Done</span>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

@@ -1,3 +1,5 @@
+
+@@ -1,218 +1,11 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
@@ -152,6 +154,8 @@ activemq-data/
 .envrc
 .venv
 env/
+# Virtual environment (create with: python -m venv .venv)
+.venv/
 venv/
 ENV/
 env.bak/
@@ -213,6 +217,13 @@ tempCodeRunnerFile.py
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+# Secrets
+.env
 
 # Streamlit
 .streamlit/secrets.toml
+# Local DB & uploads (also covered by parent .gitignore)
+db.sqlite3
+media/
+staticfiles/
+/static/uploads

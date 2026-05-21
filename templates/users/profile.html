@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Profile — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>Your Profile</h1>
+    <p>Update preferences and review your assessment status</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;">
+    <div class="card">
+        <div class="card-header"><i class="bi bi-person-gear"></i> Profile Settings</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" class="form-grid">
+                {% csrf_token %}
+                {% for field in form %}
+                <div class="form-group">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}
+                    <div style="color:var(--danger);font-size:13px;margin-top:4px;">{{ field.errors }}</div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check"></i> Save Profile</button>
+            </form>
+        </div>
+    </div>
+
+    {% if journey %}
+    <div class="card">
+        <div class="card-header"><i class="bi bi-signpost"></i> Journey Status</div>
+        <div class="card-body" style="font-size:14px;">
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span>Resume</span>
+                <span>{% if journey.has_resume %}<i class="bi bi-check-circle-fill" style="color:var(--success);"></i>{% else %}—{% endif %}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span>AI Interview</span>
+                <span>{% if journey.has_interview %}<i class="bi bi-check-circle-fill" style="color:var(--success);"></i>{% else %}—{% endif %}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
+                <span>Career predictions</span>
+                <span>{% if journey.has_predictions %}<i class="bi bi-check-circle-fill" style="color:var(--success);"></i>{% else %}—{% endif %}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;padding:8px 0;">
+                <span>Trending job match</span>
+                <span>{% if journey.has_trending_match %}<i class="bi bi-check-circle-fill" style="color:var(--success);"></i>{% else %}—{% endif %}</span>
+            </div>
+            <a href="{% url 'users:dashboard' %}" class="btn btn-outline btn-sm" style="width:100%;margin-top:16px;justify-content:center;">Back to Dashboard</a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

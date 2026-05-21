@@ -1,0 +1,9 @@
+<div class="page-header-row">
+    <div class="page-header">
+        <h1>{{ title }}</h1>
+        {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if actions %}
+    <div class="page-header-actions">{{ actions|safe }}</div>
+    {% endif %}
+</div>

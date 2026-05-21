@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block title %}Upload Resume — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>Upload Your Resume</h1>
+    <p>Gemini extracts your skills and experience so the AI interview can focus on goals and interests.</p>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;">
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-file-earmark-person"></i> Resume Upload</div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" id="resumeForm"
+                  data-ai-loader="true"
+                  data-ai-stages='["Reading your PDF…","Extracting skills with Gemini…","Building career insights…","Almost done…"]'>
+                {% csrf_token %}
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+                    <i class="bi bi-cloud-arrow-up" id="uploadIcon"></i>
+                    <div style="font-weight:600;font-size:16px;margin-bottom:6px;" id="uploadTitle">Drop your PDF here or click to browse</div>
+                    <div style="font-size:13px;color:var(--text-muted);" id="uploadSub">Supports PDF files up to 5MB</div>
+                </div>
+                {{ form.file }}
+                <div id="fileInfo" style="display:none;margin-top:12px;" class="alert alert-success">
+                    <i class="bi bi-file-earmark-check"></i> <span id="fileName"></span>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:20px;" id="submitBtn">
+                    <i class="bi bi-cpu"></i> Analyze with AI
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-stars"></i> What Gemini Extracts</div>
+            <div class="card-body" style="padding:16px;">
+                {% for item in extracts %}
+                <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">
+                    <i class="bi bi-check-circle-fill" style="color:var(--success);font-size:14px;"></i> {{ item }}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="alert alert-info" style="margin:0;">
+            <i class="bi bi-lightning-charge"></i>
+            <div>
+                <strong>Smarter Interview</strong><br>
+                <span style="font-size:13px;">After analysis, the AI interview skips topics already covered in your resume.</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if resumes %}
+<div class="card" style="margin-top:28px;">
+    <div class="card-header"><i class="bi bi-clock-history"></i> Previous Uploads</div>
+    <div class="card-body" style="padding:0;">
+        {% for r in resumes %}
+        <div style="display:flex;align-items:center;gap:16px;padding:14px 20px;border-bottom:1px solid var(--border);">
+            <i class="bi bi-file-earmark-pdf" style="font-size:20px;color:var(--danger);"></i>
+            <div style="flex:1;">
+                <div style="font-size:14px;font-weight:500;">{{ r.file.name|slice:"8:" }}</div>
+                <div style="font-size:12px;color:var(--text-muted);">{{ r.uploaded_at|date:"M d, Y" }}</div>
+            </div>
+            <span class="badge {% if r.status == 'completed' %}badge-success{% elif r.status == 'failed' %}badge-warning{% else %}badge-muted{% endif %}">
+                {{ r.status|title }}
+            </span>
+            {% if r.status == 'completed' %}
+            <a href="{% url 'users:resume_results' r.id %}" class="btn btn-outline btn-sm">View Results</a>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const input = document.getElementById('fileInput') || document.querySelector('input[type=file]');
+input.style.display = 'none';
+input.id = 'fileInput';
+
+input.addEventListener('change', function() {
+    if (this.files[0]) {
+        document.getElementById('uploadZone').classList.add('has-file');
+        document.getElementById('uploadIcon').className = 'bi bi-file-earmark-check';
+        document.getElementById('uploadTitle').textContent = 'File selected';
+        document.getElementById('uploadSub').textContent = this.files[0].name;
+        document.getElementById('fileInfo').style.display = 'flex';
+        document.getElementById('fileName').textContent = this.files[0].name;
+    }
+});
+</script>
+{% endblock %}

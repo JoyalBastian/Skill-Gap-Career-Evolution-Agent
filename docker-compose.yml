@@ -1,0 +1,86 @@
+# SkillGap AI — Docker stack
+# Run from this directory (skillgap_ai/backend):
+#   copy .env.example .env
+#
+# Gemini (default): set AI_PROVIDER=gemini and GEMINI_API_KEY in .env
+#   docker compose up --build
+#
+# Ollama: set AI_PROVIDER=ollama and COMPOSE_PROFILES=ollama in .env, then:
+#   docker compose up --build
+# (Or: docker compose --profile ollama up --build)
+# Optional NVIDIA GPU: docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile ollama up
+
+services:
+  ollama:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    container_name: skillgap-ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+
+  ollama-init:
+    profiles: ["ollama"]
+    image: ollama/ollama:latest
+    container_name: skillgap-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    env_file:
+      - .env
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Pulling model $${OLLAMA_MODEL}..."
+        ollama pull $${OLLAMA_MODEL}
+    restart: "no"
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: skillgap-web
+    restart: unless-stopped
+    depends_on:
+      ollama:
+        condition: service_healthy
+        required: false
+      ollama-init:
+        condition: service_completed_successfully
+        required: false
+    env_file:
+      - .env
+    environment:
+      AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      # Inside Docker, Ollama is the service name — not localhost from .env
+      OLLAMA_BASE_URL: http://ollama:11434
+      DATABASE_PATH: db/db.sqlite3
+      ALLOWED_HOSTS: localhost,127.0.0.1,web
+      DEBUG: "False"
+    ports:
+      - "8000:8000"
+    volumes:
+      - sqlite_data:/app/db
+      - media_uploads:/app/static/uploads
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000/accounts/login/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  ollama_data:
+  sqlite_data:
+  media_uploads:

@@ -1,0 +1,9 @@
+<a href="{% url url_name %}"
+   class="sidebar-link
+          {% if active %}active{% endif %}
+          {% if journey and url_name in journey.locked_pages %}locked{% endif %}">
+    <i class="bi bi-{{ icon }}"></i> {{ label }}
+    {% if journey and url_name in journey.locked_pages %}
+    <i class="bi bi-lock lock-icon"></i>
+    {% endif %}
+</a>

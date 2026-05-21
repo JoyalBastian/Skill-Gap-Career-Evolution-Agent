@@ -1,0 +1,10 @@
+{% if messages %}
+{% for message in messages %}
+{% if message.tags == "error" %}
+<div class="error-banner">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>{{ message }}</span>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}

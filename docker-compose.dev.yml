@@ -1,0 +1,16 @@
+# Development override — hot reload + runserver
+# docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+
+services:
+  web:
+    environment:
+      DEBUG: "True"
+    volumes:
+      - .:/app
+      - sqlite_data:/app/db
+      - media_uploads:/app/static/uploads
+    command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
+
+  ollama-init:
+    environment:
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}

@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Trending Jobs — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
+    <div class="page-header" style="margin:0;">
+        <h1>Trending Jobs</h1>
+        <p>Roles in highest demand right now, ranked by AI for your profile.</p>
+    </div>
+    <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;" data-ai-loader="true" data-ai-stages='["Fetching market trends…","Matching roles with Gemini…","Saving your matches…"]'>
+        {% csrf_token %}
+        <input type="hidden" name="action" value="match">
+        <button class="btn btn-primary"><i class="bi bi-stars"></i> Refresh My Matches</button>
+        <button name="action" value="refresh" class="btn btn-ghost" title="Re-fetch global trending jobs from AI">
+            <i class="bi bi-arrow-repeat"></i> Refresh Trends
+        </button>
+    </form>
+</div>
+
+{% include "partials/_ai_disclaimer.html" %}
+{% if last_refreshed %}
+<p style="font-size:13px;color:var(--text-muted);margin:-12px 0 20px;">Trends last refreshed: {{ last_refreshed|date:"M d, Y H:i" }}</p>
+{% endif %}
+
+{% if matches %}
+<h3 style="margin:24px 0 12px;">Your Top Matches</h3>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    {% for m in matches %}
+    <div class="card">
+        <div class="card-body">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                <span class="badge badge-primary">{{ m.fit_score|floatformat:0 }}% fit</span>
+                <span class="badge badge-muted" style="text-transform:capitalize;">{{ m.job.demand_label }} demand</span>
+            </div>
+            <div style="font-weight:600;font-size:16px;margin-bottom:6px;">{{ m.job.title }}</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.5;">{{ m.fit_reason|truncatewords:30 }}</p>
+            {% if m.matched_skills %}
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">You already have:</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+                {% for s in m.matched_skills|slice:":5" %}<span class="badge badge-success">{{ s }}</span>{% endfor %}
+            </div>
+            {% endif %}
+            {% if m.missing_skills %}
+            <div style="font-size:12px;color:var(--text-muted);margin-bottom:4px;">To qualify, learn:</div>
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;">
+                {% for s in m.missing_skills|slice:":5" %}<span class="badge badge-warning">{{ s }}</span>{% endfor %}
+            </div>
+            {% endif %}
+            <a href="{% url 'jobs:detail' m.job.slug %}" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">View Details</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<h3 style="margin:32px 0 12px;">All Trending Roles</h3>
+{% if jobs %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">
+    {% for job in jobs %}
+    <div class="card">
+        <div class="card-body">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                <span class="badge badge-muted" style="text-transform:capitalize;">{{ job.demand_label }} demand</span>
+            </div>
+            <div style="font-weight:600;font-size:15px;margin-bottom:6px;">{{ job.title }}</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 10px;line-height:1.5;">{{ job.summary|truncatewords:22 }}</p>
+            <a href="{% url 'jobs:detail' job.slug %}" class="btn btn-ghost btn-sm">Open →</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:60px 32px;">
+        <i class="bi bi-briefcase" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">No trending jobs cached yet</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Click "Refresh Trends" above to fetch the latest in-demand roles via AI.</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

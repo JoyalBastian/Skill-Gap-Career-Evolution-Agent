@@ -1,0 +1,181 @@
+{% extends "base.html" %}
+{% block title %}AI Interview — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="q-container">
+
+    <div class="q-progress-bar">
+        <div class="q-step-info">
+            <span>Question {{ progress.answered|add:1 }} of ~{{ progress.total }}</span>
+            <span style="font-weight:600;color:var(--primary);">{{ progress.percent }}% complete</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" style="width:{{ progress.percent }}%;"></div>
+        </div>
+    </div>
+
+    <div class="q-source-badge">
+        {% if question.source == "gemini" %}
+        <span class="badge badge-gemini"><i class="bi bi-stars"></i> Gemini AI</span>
+        {% else %}
+        <span class="badge badge-muted"><i class="bi bi-lightbulb"></i> Smart Question</span>
+        {% endif %}
+        {% if question.topic %}
+        <span class="badge badge-muted" style="margin-left:6px;">{{ question.topic|title|cut:"_" }}</span>
+        {% endif %}
+    </div>
+
+    <div class="q-card">
+        <div class="q-question-text">{{ question.text }}</div>
+
+        <form method="post" id="answerForm"
+              data-ai-loader="true"
+              data-ai-overlay="false"
+              {% if progress.answered|add:1 >= progress.total %}
+              data-ai-stages='["Saving your answers…","Analyzing with Gemini…","Generating career matches…","Building your roadmap…"]'
+              {% else %}
+              data-ai-stages='["Saving your answer…","Generating your next question…","Almost ready…"]'
+              {% endif %}>
+            {% csrf_token %}
+            <input type="hidden" name="question_id" value="{{ question.id }}">
+
+            {% if question.question_type == "free_text" %}
+            <textarea name="text_response" class="form-control" rows="4" placeholder="Share your background, goals, and what you want to achieve…" autofocus id="textAnswer" required></textarea>
+
+            {% elif question.question_type == "single_choice" %}
+            <div id="choiceGroup">
+                {% for option in question.options %}
+                <div class="choice-option" onclick="selectOption(this, 'radio')">
+                    <input type="radio" name="options" value="{{ option }}" id="opt_{{ forloop.counter }}">
+                    <label for="opt_{{ forloop.counter }}">{{ option }}</label>
+                </div>
+                {% endfor %}
+                <div class="choice-option" onclick="selectOtherSingle(this)">
+                    <input type="radio" name="options" value="Other" id="opt_other">
+                    <label for="opt_other">Other (specify)</label>
+                </div>
+            </div>
+            <div id="otherTextWrap" class="mt-3" style="display:none;">
+                <textarea name="other_text" class="form-control" rows="2" placeholder="Please specify…" id="otherText"></textarea>
+            </div>
+
+            {% elif question.question_type == "multi_choice" %}
+            <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;"><i class="bi bi-info-circle"></i> Select all that apply</p>
+            <div id="choiceGroup">
+                {% for option in question.options %}
+                <div class="choice-option" onclick="selectOption(this, 'checkbox')">
+                    <input type="checkbox" name="options" value="{{ option }}" id="opt_{{ forloop.counter }}">
+                    <label for="opt_{{ forloop.counter }}">{{ option }}</label>
+                </div>
+                {% endfor %}
+                <div class="choice-option" onclick="selectOtherMulti(this)">
+                    <input type="checkbox" name="options" value="Other" id="opt_other">
+                    <label for="opt_other">Other (specify)</label>
+                </div>
+            </div>
+            <div id="otherTextWrap" class="mt-3" style="display:none;">
+                <textarea name="other_text" class="form-control" rows="2" placeholder="Please specify…" id="otherText"></textarea>
+            </div>
+            {% endif %}
+
+            <div class="q-footer">
+                <div class="q-hint">
+                    <i class="bi bi-robot"></i>
+                    Gemini is personalizing your next question
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg" id="nextBtn"
+                        data-loading-text="{% if progress.answered|add:1 >= progress.total %}Analyzing…{% else %}Generating next question…{% endif %}">
+                    {% if progress.answered|add:1 >= progress.total %}
+                    <i class="bi bi-check-circle"></i> Finish & Analyze
+                    {% else %}
+                    Next <i class="bi bi-arrow-right"></i>
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function selectOption(el, type) {
+    const input = el.querySelector('input');
+    if (type === 'radio') {
+        document.querySelectorAll('.choice-option').forEach(o => o.classList.remove('selected'));
+        input.checked = true;
+        el.classList.add('selected');
+        const otherWrap = document.getElementById('otherTextWrap');
+        const otherInput = document.getElementById('opt_other');
+        if (otherWrap && otherInput && input.id !== 'opt_other') {
+            otherWrap.style.display = 'none';
+            otherInput.checked = false;
+        }
+    } else {
+        input.checked = !input.checked;
+        el.classList.toggle('selected', input.checked);
+    }
+}
+
+function selectOtherSingle(el) {
+    document.querySelectorAll('.choice-option').forEach(o => o.classList.remove('selected'));
+    const input = el.querySelector('input');
+    input.checked = true;
+    el.classList.add('selected');
+    const wrap = document.getElementById('otherTextWrap');
+    if (wrap) wrap.style.display = 'block';
+    const ta = document.getElementById('otherText');
+    if (ta) ta.focus();
+}
+
+function selectOtherMulti(el) {
+    const input = el.querySelector('input');
+    input.checked = !input.checked;
+    el.classList.toggle('selected', input.checked);
+    const wrap = document.getElementById('otherTextWrap');
+    if (wrap) wrap.style.display = input.checked ? 'block' : 'none';
+    if (input.checked) {
+        const ta = document.getElementById('otherText');
+        if (ta) ta.focus();
+    }
+}
+
+(function() {
+    const form = document.getElementById('answerForm');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+        const otherInput = document.getElementById('opt_other');
+        const otherText = document.getElementById('otherText');
+        if (otherInput && otherInput.checked && otherText && !otherText.value.trim()) {
+            e.preventDefault();
+            alert('Please specify your answer in the Other field.');
+            otherText.focus();
+            return;
+        }
+        const textAnswer = document.getElementById('textAnswer');
+        if (textAnswer && !textAnswer.value.trim()) {
+            e.preventDefault();
+            alert('Please provide an answer before continuing.');
+            textAnswer.focus();
+            return;
+        }
+    }, true);
+
+    form.addEventListener('submit', function(e) {
+        if (e.defaultPrevented) return;
+        const isLast = {{ progress.answered|add:1 }} >= {{ progress.total }};
+        if (isLast && window.SkillGapUI) {
+            let stages = ['Saving your answers…', 'Analyzing with Gemini…', 'Generating career matches…', 'Building your roadmap…'];
+            try {
+                const raw = form.getAttribute('data-ai-stages');
+                if (raw) stages = JSON.parse(raw);
+            } catch (err) {}
+            window.SkillGapUI.showLoader(stages);
+        }
+    });
+})();
+</script>
+{% endblock %}

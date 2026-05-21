@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}{{ job.title }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<a href="{% url 'jobs:trending' %}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;">← Back to Trending</a>
+
+<div class="page-header">
+    <h1>{{ job.title }}</h1>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+        <span class="badge badge-muted" style="text-transform:capitalize;">{{ job.demand_label }} demand</span>
+        {% if job.salary_band_text %}<span class="badge badge-muted">{{ job.salary_band_text }}</span>{% endif %}
+    </div>
+</div>
+
+<div class="alert alert-warning" style="margin-bottom:20px;">
+    <i class="bi bi-info-circle"></i>
+    This page is AI-generated. Verify details against live job boards before applying.
+</div>
+
+<div class="card" style="margin-bottom:16px;">
+    <div class="card-body">
+        <h3 style="font-weight:600;margin:0 0 8px;">About this role</h3>
+        <p style="margin:0 0 12px;">{{ job.summary }}</p>
+        {% if job.growth_reason %}
+        <h4 style="font-weight:600;margin:16px 0 8px;">Why demand is growing</h4>
+        <p style="margin:0;">{{ job.growth_reason }}</p>
+        {% endif %}
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+    {% if job.required_skills %}
+    <div class="card">
+        <div class="card-body">
+            <h4 style="font-weight:600;margin:0 0 12px;">Required Skills</h4>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                {% for s in job.required_skills %}<span class="badge badge-muted">{{ s }}</span>{% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    {% if job.suggested_titles %}
+    <div class="card">
+        <div class="card-body">
+            <h4 style="font-weight:600;margin:0 0 12px;">Similar Titles</h4>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                {% for t in job.suggested_titles %}<span class="badge badge-muted">{{ t }}</span>{% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if match %}
+<div class="card" style="margin-top:16px;">
+    <div class="card-body">
+        <h3 style="font-weight:600;margin:0 0 8px;">Your Match: {{ match.fit_score|floatformat:0 }}%</h3>
+        <p style="margin:0 0 12px;">{{ match.fit_reason }}</p>
+        {% if match.matched_skills %}
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Skills you already have:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">
+            {% for s in match.matched_skills %}<span class="badge badge-success">{{ s }}</span>{% endfor %}
+        </div>
+        {% endif %}
+        {% if match.missing_skills %}
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Skills you should learn:</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            {% for s in match.missing_skills %}<span class="badge badge-warning">{{ s }}</span>{% endfor %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

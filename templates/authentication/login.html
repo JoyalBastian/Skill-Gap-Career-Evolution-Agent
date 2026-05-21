@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Login — {{ SITE_NAME }}{% endblock %}
+{% block content_unauth %}
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <i class="bi bi-graph-up-arrow"></i>
+            <h1>{{ SITE_NAME }}</h1>
+            <p>AI-powered career guidance platform</p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            {% for field in form %}
+            <div class="form-group">
+                <label class="form-label">{{ field.label }}</label>
+                {{ field }}
+                {% if field.errors %}<div style="color:var(--danger);font-size:13px;margin-top:4px;">{{ field.errors }}</div>{% endif %}
+            </div>
+            {% endfor %}
+            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;">
+                <i class="bi bi-box-arrow-in-right"></i> Sign In
+            </button>
+        </form>
+        <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted);">
+            No account? <a href="{% url 'authentication:register' %}" style="color:var(--primary);font-weight:600;">Create one free</a>
+        </p>
+    </div>
+</div>
+{% endblock %}

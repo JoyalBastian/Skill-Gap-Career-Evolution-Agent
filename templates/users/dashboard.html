@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>Welcome back, {{ user.first_name|default:user.username }}</h1>
+    <p>Your AI-powered career evolution hub</p>
+</div>
+
+{% include "partials/_journey_stepper.html" %}
+{% include "partials/_next_step.html" %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:28px;">
+    <div class="stat-card primary">
+        <div class="stat-label">Employability Score</div>
+        <div class="stat-value">{% if journey.employability_score %}{{ journey.employability_score|floatformat:0 }}%{% else %}—{% endif %}</div>
+        <div class="stat-sub">Based on skill gap analysis</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">AI Interviews</div>
+        <div class="stat-value">{{ journey.sessions_count }}</div>
+        <div class="stat-sub">Completed sessions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Career Matches</div>
+        <div class="stat-value">{{ journey.predictions_count }}</div>
+        <div class="stat-sub">Top predictions</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Resume</div>
+        <div class="stat-value" style="font-size:20px;">
+            {% if journey.has_resume %}
+            <span style="color:var(--success)"><i class="bi bi-check-circle-fill"></i></span>
+            {% else %}
+            <span style="color:var(--text-muted)"><i class="bi bi-dash-circle"></i></span>
+            {% endif %}
+        </div>
+        <div class="stat-sub">{% if journey.has_resume %}Analyzed by Gemini{% else %}Not uploaded{% endif %}</div>
+    </div>
+</div>
+
+{% if predictions %}
+<div class="card">
+    <div class="card-header"><i class="bi bi-briefcase"></i> Top Career Matches</div>
+    <div class="card-body" style="padding:16px;">
+        {% for pred in predictions %}
+        <div class="career-card" style="display:flex;align-items:center;gap:16px;">
+            <div class="rank-badge {% if pred.rank == 1 %}gold{% endif %}">#{{ pred.rank }}</div>
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:15px;">{{ pred.career.name }}</div>
+                <div style="font-size:13px;color:var(--text-muted);margin-top:2px;">{{ pred.explanation_text|truncatewords:15 }}</div>
+                <div class="progress-track" style="margin-top:8px;">
+                    <div class="progress-fill" style="width:{{ pred.confidence_pct }}%;"></div>
+                </div>
+            </div>
+            <div style="font-weight:700;font-size:18px;color:var(--primary);">{{ pred.confidence_pct }}%</div>
+        </div>
+        {% endfor %}
+        <div style="margin-top:12px;">
+            <a href="{% url 'careers:predictions' %}" class="btn btn-outline btn-sm">View All Predictions</a>
+        </div>
+    </div>
+</div>
+{% elif journey.has_interview %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Your interview is complete. Refresh career predictions if results are not showing yet.
+    <a href="{% url 'careers:predictions' %}" class="btn btn-primary btn-sm" style="margin-left:12px;">View Predictions</a>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="bi bi-info-circle"></i>
+    Upload your resume or start the AI interview to unlock personalized career guidance.
+</div>
+{% endif %}
+
+{% endblock %}

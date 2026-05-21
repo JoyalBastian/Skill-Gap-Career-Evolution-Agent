@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Recommendations — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
+    <div class="page-header" style="margin:0;">
+        <h1>AI Recommendations</h1>
+        <p>Personalized learning resources based on your profile and skill gaps</p>
+    </div>
+    <form method="post" data-ai-loader="true" data-ai-stages='["Reviewing your gaps…","Finding resources with Gemini…","Saving recommendations…"]'>
+        {% csrf_token %}
+        <button class="btn btn-ghost"><i class="bi bi-arrow-repeat"></i> Refresh</button>
+    </form>
+</div>
+
+{% include "partials/_ai_disclaimer.html" %}
+
+{% if journey.has_recommendations and not journey.has_trending_match %}
+{% include "partials/_next_step.html" %}
+{% endif %}
+
+<div class="filter-pills">
+    <a href="?" class="filter-pill {% if not active_category %}active{% endif %}">All</a>
+    {% for cat in categories %}
+    <a href="?category={{ cat }}" class="filter-pill {% if active_category == cat %}active{% endif %}">
+        {% if cat == "course" %}<i class="bi bi-play-circle"></i>
+        {% elif cat == "certification" %}<i class="bi bi-award"></i>
+        {% elif cat == "project" %}<i class="bi bi-code-slash"></i>
+        {% elif cat == "career" %}<i class="bi bi-briefcase"></i>
+        {% else %}<i class="bi bi-book"></i>{% endif %}
+        {{ cat|title }}
+    </a>
+    {% endfor %}
+</div>
+
+{% if recommendations %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+    {% for rec in recommendations %}
+    <div class="card" style="display:flex;flex-direction:column;">
+        <div class="card-body" style="flex:1;">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <div style="width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+                    background:{% if rec.category == 'course' %}#eff6ff{% elif rec.category == 'certification' %}#fef3c7{% elif rec.category == 'career' %}var(--primary-light){% else %}#f0fdf4{% endif %};">
+                    {% if rec.category == "course" %}<i class="bi bi-play-circle" style="color:#1d4ed8;"></i>
+                    {% elif rec.category == "certification" %}<i class="bi bi-award" style="color:#92400e;"></i>
+                    {% elif rec.category == "career" %}<i class="bi bi-briefcase" style="color:var(--primary);"></i>
+                    {% elif rec.category == "project" %}<i class="bi bi-code-slash" style="color:var(--success);"></i>
+                    {% else %}<i class="bi bi-book" style="color:var(--text-muted);"></i>{% endif %}
+                </div>
+                <div>
+                    <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
+                </div>
+                <div style="margin-left:auto;font-size:12px;color:var(--text-muted);">
+                    Score: {{ rec.score|floatformat:2 }}
+                </div>
+            </div>
+            <div style="font-weight:600;font-size:15px;margin-bottom:6px;">{{ rec.title }}</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:0 0 12px;line-height:1.5;">{{ rec.reason|truncatewords:25 }}</p>
+        </div>
+        {% if rec.url %}
+        <div style="padding:12px 20px;border-top:1px solid var(--border);">
+            <a href="{{ rec.url }}" target="_blank" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">
+                <i class="bi bi-box-arrow-up-right"></i> Open Resource
+            </a>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:60px 32px;">
+        <i class="bi bi-lightbulb" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">No recommendations yet</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Complete the AI interview to get personalized learning recommendations.</p>
+        <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start AI Interview</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

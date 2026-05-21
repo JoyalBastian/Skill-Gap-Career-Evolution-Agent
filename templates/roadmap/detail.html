@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}{{ roadmap.title }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:24px;">
+    <a href="{% url 'roadmap:list' %}" style="color:var(--text-muted);font-size:13px;text-decoration:none;"><i class="bi bi-arrow-left"></i> All Roadmaps</a>
+</div>
+
+<div class="page-header">
+    <h1>{{ roadmap.title }}</h1>
+    <p>{{ roadmap.description }} · {{ steps|length }} steps · {{ roadmap.level|title }} level</p>
+</div>
+
+<!-- Progress bar -->
+{% if total_count %}
+<div class="card" style="margin-bottom:28px;">
+    <div class="card-body" style="display:flex;align-items:center;gap:20px;">
+        <div style="flex:1;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--text-muted);margin-bottom:8px;">
+                <span>Roadmap Progress</span>
+                <span style="font-weight:600;color:var(--primary);">{{ done_count }} / {{ total_count }} steps</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill success" style="width:{{ progress_pct }}%;"></div>
+            </div>
+        </div>
+        {% if done_count == total_count %}
+        <span class="badge badge-success"><i class="bi bi-trophy"></i> Completed!</span>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Steps timeline -->
+<div style="position:relative;">
+    {% for step in steps %}
+    <div style="display:flex;gap:20px;margin-bottom:20px;">
+
+        <!-- Timeline indicator -->
+        <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0;">
+            <div style="width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                background:{% if step.id in completed_step_ids %}var(--success){% else %}var(--primary-light){% endif %};
+                color:{% if step.id in completed_step_ids %}white{% else %}var(--primary){% endif %};
+                border:2px solid {% if step.id in completed_step_ids %}var(--success){% else %}var(--primary){% endif %};">
+                {% if step.id in completed_step_ids %}<i class="bi bi-check"></i>{% else %}{{ step.order }}{% endif %}
+            </div>
+            {% if not forloop.last %}
+            <div style="width:2px;flex:1;min-height:20px;background:var(--border);margin:4px 0;"></div>
+            {% endif %}
+        </div>
+
+        <!-- Step card -->
+        <div class="card" style="flex:1;{% if step.id in completed_step_ids %}opacity:.75;{% endif %}">
+            <div class="card-body">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+                    <div style="flex:1;">
+                        <div style="font-weight:600;font-size:16px;margin-bottom:6px;">{{ step.title }}</div>
+                        <p style="font-size:14px;color:var(--text-muted);margin:0 0 12px;line-height:1.6;">{{ step.description }}</p>
+                        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                            <span style="font-size:13px;color:var(--text-muted);"><i class="bi bi-clock"></i> ~{{ step.estimated_weeks }} weeks</span>
+                            {% for skill in step.skills.all %}
+                            <span class="badge badge-primary">{{ skill.name }}</span>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% if step.id not in completed_step_ids %}
+                    <form method="post" action="{% url 'roadmap:step_complete' step.id %}">
+                        {% csrf_token %}
+                        <button class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Mark Done</button>
+                    </form>
+                    {% else %}
+                    <span class="badge badge-success"><i class="bi bi-check-circle-fill"></i> Completed</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if done_count >= 1 %}
+{% include "partials/_next_step.html" %}
+{% endif %}
+
+{% endblock %}

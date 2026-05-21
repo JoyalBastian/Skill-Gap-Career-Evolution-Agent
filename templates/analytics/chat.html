@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% block title %}AI Career Chat — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>AI Career Advisor</h1>
+    <p>Ask about your career matches, skill gaps, roadmap, or next steps</p>
+</div>
+
+{% if not chatbot_enabled %}
+<div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle"></i>
+    Chat requires <code>GEMINI_API_KEY</code> in <code>backend/.env</code>.
+</div>
+{% endif %}
+
+<div style="max-width:760px;">
+    <div class="card chat-container">
+        <div class="card-header">
+            <i class="bi bi-robot"></i> Gemini Career Advisor
+            <span class="badge badge-gemini" style="margin-left:auto;">Powered by Gemini</span>
+        </div>
+        <div id="chatBox" class="chat-messages">
+            {% if not history %}
+            <div id="chatPlaceholder" style="text-align:center;color:var(--text-muted);padding:40px 0;">
+                <i class="bi bi-chat-dots" style="font-size:36px;display:block;margin-bottom:12px;"></i>
+                <div style="font-weight:500;margin-bottom:6px;">Start a conversation</div>
+                <div style="font-size:13px;">Ask about your career matches, skill gaps, or what to learn next.</div>
+            </div>
+            {% endif %}
+            {% for msg in history %}
+            <div class="chat-row {% if msg.role == 'user' %}user-row{% else %}assistant-row{% endif %}">
+                <div class="chat-bubble {% if msg.role == 'user' %}user{% else %}assistant{% endif %}{% if highlight_last and forloop.last and msg.role == 'assistant' %} highlight{% endif %}">
+                    {{ msg.content|linebreaksbr }}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div id="chatError" class="error-banner" style="display:none;margin:0 16px 12px;"></div>
+        <form method="post" id="chatForm" class="chat-input-row">
+            {% csrf_token %}
+            <input type="text" name="message" id="messageInput" class="form-control"
+                placeholder="Ask about your career, skills, roadmap..." autocomplete="off" required
+                {% if not chatbot_enabled %}disabled{% endif %}>
+            <button type="submit" class="btn btn-primary" id="sendBtn" style="white-space:nowrap;"
+                {% if not chatbot_enabled %}disabled{% endif %}>
+                <i class="bi bi-send"></i> Send
+            </button>
+        </form>
+    </div>
+
+    <div class="quick-prompts">
+        {% for prompt in quick_prompts %}
+        <button type="button" class="btn btn-ghost btn-sm quick-prompt" data-prompt="{{ prompt }}">
+            {{ prompt }}
+        </button>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}
+{% block extra_js %}
+<script>
+(function() {
+    const box = document.getElementById('chatBox');
+    const form = document.getElementById('chatForm');
+    const input = document.getElementById('messageInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const errEl = document.getElementById('chatError');
+    const placeholder = document.getElementById('chatPlaceholder');
+    const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    function scrollBottom() {
+        box.scrollTop = box.scrollHeight;
+    }
+    scrollBottom();
+
+    function appendBubble(role, text, highlight) {
+        if (placeholder) placeholder.remove();
+        const row = document.createElement('div');
+        row.className = 'chat-row ' + (role === 'user' ? 'user-row' : 'assistant-row');
+        const bubble = document.createElement('div');
+        bubble.className = 'chat-bubble ' + role + (highlight ? ' highlight' : '');
+        bubble.innerHTML = text.replace(/\n/g, '<br>');
+        row.appendChild(bubble);
+        box.appendChild(row);
+        scrollBottom();
+    }
+
+    function setLoading(on) {
+        sendBtn.disabled = on;
+        input.disabled = on;
+        sendBtn.innerHTML = on
+            ? '<i class="bi bi-hourglass-split"></i>'
+            : '<i class="bi bi-send"></i> Send';
+    }
+
+    function showError(msg) {
+        errEl.style.display = 'flex';
+        errEl.innerHTML = '<i class="bi bi-exclamation-triangle-fill"></i><span></span>';
+        errEl.querySelector('span').textContent = msg;
+    }
+
+    function clearError() {
+        errEl.style.display = 'none';
+    }
+
+    form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const text = input.value.trim();
+        if (!text) return;
+
+        clearError();
+        appendBubble('user', text, false);
+        input.value = '';
+        setLoading(true);
+
+        try {
+            const body = new FormData();
+            body.append('message', text);
+            body.append('csrfmiddlewaretoken', csrf);
+
+            const res = await fetch(window.location.pathname, {
+                method: 'POST',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                body: body,
+            });
+
+            const data = await res.json();
+            if (!res.ok) {
+                showError(data.error || 'Could not send message.');
+                return;
+            }
+            appendBubble('assistant', data.reply, true);
+        } catch (err) {
+            showError('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+            input.focus();
+        }
+    });
+
+    document.querySelectorAll('.quick-prompt').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            input.value = btn.getAttribute('data-prompt');
+            input.focus();
+        });
+    });
+})();
+</script>
+{% endblock %}

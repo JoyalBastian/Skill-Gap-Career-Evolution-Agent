@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Learning Roadmap — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
+    <div class="page-header" style="margin:0;">
+        <h1>Learning Roadmap</h1>
+        <p>Your AI-generated personalized learning path</p>
+    </div>
+    <form method="post" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;" data-ai-loader="true" data-ai-stages='["Planning your path…","Generating steps with Gemini…","Saving roadmap…"]'>
+        {% csrf_token %}
+        <select name="career_id" class="form-control" style="width:200px;">
+            <option value="">Top predicted career</option>
+            {% for c in careers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+        <select name="level" class="form-control" style="width:140px;">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+        </select>
+        <button class="btn btn-primary"><i class="bi bi-stars"></i> Generate with AI</button>
+    </form>
+</div>
+
+{% if active_roadmap %}
+<div class="alert alert-success" style="margin-bottom:12px;">
+    <i class="bi bi-check-circle-fill"></i>
+    Active roadmap: <a href="{% url 'roadmap:detail' active_roadmap.id %}" style="font-weight:600;color:var(--success);">{{ active_roadmap.title }}</a>
+    — {{ active_roadmap.steps.count }} steps
+</div>
+{% endif %}
+
+{% include "partials/_ai_disclaimer.html" %}
+
+{% if journey.has_roadmap and not journey.has_recommendations %}
+{% include "partials/_next_step.html" %}
+{% endif %}
+
+{% if roadmaps %}
+<div style="display:flex;flex-direction:column;gap:12px;">
+    {% for r in roadmaps %}
+    <div class="card" style="{% if r.is_active %}border-color:var(--primary);{% endif %}">
+        <div class="card-body" style="display:flex;align-items:center;gap:16px;">
+            <div style="width:44px;height:44px;border-radius:10px;background:{% if r.is_active %}var(--primary){% else %}var(--surface-2){% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="bi bi-map" style="font-size:20px;color:{% if r.is_active %}white{% else %}var(--text-muted){% endif %};"></i>
+            </div>
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:15px;">{{ r.title }}</div>
+                <div style="font-size:13px;color:var(--text-muted);">{{ r.target_career.name }} · {{ r.level|title }} · {{ r.steps.count }} steps · {{ r.generated_at|date:"M d, Y" }}</div>
+            </div>
+            {% if r.is_active %}<span class="badge badge-primary">Active</span>{% endif %}
+            <a href="{% url 'roadmap:detail' r.id %}" class="btn btn-outline btn-sm">View →</a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:60px 32px;">
+        <i class="bi bi-map" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">No roadmap yet</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Complete the AI interview to auto-generate your roadmap, or click Generate above.</p>
+        <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start AI Interview</a>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

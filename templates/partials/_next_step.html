@@ -1,0 +1,16 @@
+{% if journey and journey.next_step != "done" %}
+{% with step=journey.next_step_info %}
+{% if step %}
+<div class="next-step-banner">
+    <div class="next-step-body">
+        <div class="next-step-label">Recommended next step</div>
+        <div class="next-step-title">{{ step.title }}</div>
+        <div class="next-step-desc">{{ step.description }}</div>
+    </div>
+    <a href="{{ step.url }}" class="btn-next">
+        <i class="bi bi-{{ step.icon }}"></i> {{ step.cta }}
+    </a>
+</div>
+{% endif %}
+{% endwith %}
+{% endif %}

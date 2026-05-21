@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}My Progress — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>My Progress</h1>
+    <p>Track your learning journey and skill development</p>
+</div>
+
+<!-- Stats -->
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px;">
+    <div class="stat-card primary">
+        <div class="stat-label">Overall Progress</div>
+        <div class="stat-value">{{ progress.overall }}%</div>
+        <div class="stat-sub">Across all activities</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Roadmap</div>
+        <div class="stat-value">{{ progress.roadmap_percent }}%</div>
+        <div class="stat-sub">Steps completed</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Skills</div>
+        <div class="stat-value">{{ progress.skills_percent }}%</div>
+        <div class="stat-sub">Skills acquired</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Learning</div>
+        <div class="stat-value">{{ progress.learning_percent|default:"0" }}%</div>
+        <div class="stat-sub">Resources completed</div>
+    </div>
+</div>
+
+<!-- Progress bars -->
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-header"><i class="bi bi-bar-chart-line"></i> Progress Breakdown</div>
+    <div class="card-body">
+        {% for item in progress_metrics %}
+        <div style="margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px;">
+                <span style="font-weight:500;">{{ item.label }}</span>
+                <span style="color:var(--primary);font-weight:600;">{{ item.value }}%</span>
+            </div>
+            <div class="progress-track">
+                <div class="progress-fill {% if item.value >= 70 %}success{% elif item.value >= 40 %}{% else %}warning{% endif %}" style="width:{{ item.value }}%;"></div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Recent activity -->
+<div class="card">
+    <div class="card-header"><i class="bi bi-clock-history"></i> Recent Activity</div>
+    <div class="card-body" style="padding:0;">
+        {% for e in entries %}
+        <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border);">
+            <div style="width:36px;height:36px;border-radius:8px;background:{% if e.is_completed %}#d1fae5{% else %}var(--primary-light){% endif %};display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="bi bi-{% if e.is_completed %}check-circle-fill{% else %}hourglass-split{% endif %}" style="color:{% if e.is_completed %}var(--success){% else %}var(--primary){% endif %};"></i>
+            </div>
+            <div style="flex:1;">
+                <div style="font-size:14px;font-weight:500;">{{ e.content_type }} #{{ e.object_id }}</div>
+                <div style="font-size:12px;color:var(--text-muted);">{{ e.updated_at|date:"M d, Y" }}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-weight:600;font-size:14px;color:{% if e.is_completed %}var(--success){% else %}var(--primary){% endif %};">
+                    {{ e.percent_complete }}%
+                </div>
+                {% if e.is_completed %}<span class="badge badge-success" style="font-size:11px;">Done</span>{% endif %}
+            </div>
+        </div>
+        {% empty %}
+        <div style="text-align:center;padding:40px;color:var(--text-muted);">
+            <i class="bi bi-clock-history" style="font-size:32px;display:block;margin-bottom:12px;"></i>
+            No activity yet. Start your roadmap to track progress.
+            <div style="margin-top:16px;">
+                <a href="{% url 'roadmap:list' %}" class="btn btn-primary btn-sm">View Roadmap</a>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+{% endblock %}

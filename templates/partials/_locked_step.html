@@ -1,0 +1,16 @@
+{# Included inside locked_page.html or other full layouts — not used standalone. #}
+<div class="card locked-page-panel">
+    <div class="card-body">
+        <div class="lock-badge"><i class="bi bi-lock-fill"></i> Locked</div>
+        <h2 class="locked-page-title">{{ locked_title|default:"Complete earlier steps first" }}</h2>
+        <p class="locked-page-desc">{{ locked_body|default:"This section unlocks once you finish the recommended steps in your career journey." }}</p>
+        {% if journey and journey.next_step_info %}
+        <div class="locked-page-cta">
+            <a href="{{ journey.next_step_info.url }}" class="btn btn-primary btn-lg">
+                <i class="bi bi-{{ journey.next_step_info.icon }}"></i>
+                {{ journey.next_step_info.cta }}
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>

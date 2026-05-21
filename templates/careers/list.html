@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Your Careers — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>Your Matched Careers</h1>
+    <p>Career domains from your Gemini predictions</p>
+</div>
+
+{% if careers %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+    {% for career in careers %}
+    <div class="career-card">
+        <div style="font-weight:700;font-size:16px;margin-bottom:8px;">{{ career.name }}</div>
+        <p style="font-size:13px;color:var(--text-muted);margin:0 0 16px;line-height:1.5;">{{ career.description|truncatewords:25 }}</p>
+        <a href="{% url 'careers:detail' career.slug %}" class="btn btn-outline btn-sm">View Details</a>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body empty-state">
+        <div class="empty-state-icon"><i class="bi bi-briefcase"></i></div>
+        <h2>No matched careers yet</h2>
+        <p>Complete your assessment to see careers Gemini recommends for you.</p>
+        <div class="empty-state-actions">
+            <a href="{% url 'careers:predictions' %}" class="btn btn-primary">View Predictions</a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

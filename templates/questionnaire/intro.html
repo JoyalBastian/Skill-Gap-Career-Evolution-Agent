@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}AI Interview — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1><i class="bi bi-mic"></i> AI Career Interview</h1>
+    <p>Tell us about your goals first. When you are ready, we will generate personalized interview questions.</p>
+</div>
+
+{% if in_progress_session %}
+<div class="alert alert-info" style="margin-bottom:24px;">
+    <i class="bi bi-hourglass-split"></i>
+    <div>
+        <strong>Interview in progress</strong><br>
+        <span style="font-size:13px;">You can continue where you left off or start a new interview below (your previous session will be replaced).</span>
+        <div style="margin-top:12px;">
+            <a href="{% url 'questionnaire:question' in_progress_session.id %}" class="btn btn-primary btn-sm">
+                <i class="bi bi-play-fill"></i> Continue interview
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div style="display:grid;grid-template-columns:1fr 320px;gap:24px;align-items:start;">
+
+    <div class="card">
+        <div class="card-header"><i class="bi bi-person-lines-fill"></i> Your information</div>
+        <div class="card-body">
+            <form method="post" id="interviewPrepForm"
+                  data-ai-loader="true"
+                  data-ai-stages='["Saving your details…","Preparing your interview…","Generating your first question…","Almost ready…"]'>
+                {% csrf_token %}
+
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="full_name">Full name</label>
+                        <input type="text" name="full_name" id="full_name" class="form-control"
+                               value="{{ prep.full_name }}" placeholder="e.g. Alex Johnson">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="current_title">Current role / title</label>
+                        <input type="text" name="current_title" id="current_title" class="form-control"
+                               value="{{ prep.current_title }}" placeholder="e.g. Software Engineer">
+                    </div>
+                </div>
+
+                <div class="form-group" style="margin-top:16px;">
+                    <label class="form-label" for="career_goals">Career goals <span style="color:var(--danger);">*</span></label>
+                    <textarea name="career_goals" id="career_goals" class="form-control" rows="4" required
+                              placeholder="What do you want to achieve? Roles, skills, industries, timeline…">{{ prep.career_goals }}</textarea>
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="focus_areas">Topics to explore in the interview</label>
+                    <textarea name="focus_areas" id="focus_areas" class="form-control" rows="3"
+                              placeholder="Optional: leadership, switching domains, certifications, work-life balance…">{{ prep.focus_areas }}</textarea>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
+                    <div class="form-group">
+                        <label class="form-label" for="years_experience">Years of experience</label>
+                        <input type="number" name="years_experience" id="years_experience" class="form-control"
+                               min="0" max="60" value="{{ prep.years_experience }}" placeholder="e.g. 5">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label" for="target_career_level">Target level</label>
+                        <select name="target_career_level" id="target_career_level" class="form-select">
+                            {% for value, label in level_choices %}
+                            <option value="{{ value }}" {% if prep.target_career_level == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group" style="display:flex;align-items:flex-end;padding-bottom:8px;">
+                        <label style="display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer;">
+                            <input type="checkbox" name="is_technical_track" {% if prep.is_technical_track %}checked{% endif %}>
+                            Technical career track
+                        </label>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:24px;">
+                    <i class="bi bi-stars"></i> Start AI interview
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-info-circle"></i> How it works</div>
+            <div class="card-body" style="padding:16px;font-size:14px;line-height:1.6;">
+                <p style="margin:0 0 12px;">1. Share your goals and context on this page.</p>
+                <p style="margin:0 0 12px;">2. AI generates ~12 tailored questions (first is open-ended, then multiple choice).</p>
+                <p style="margin:0;">3. Your answers drive career predictions, skill gaps, and your roadmap.</p>
+            </div>
+        </div>
+        {% if has_resume %}
+        <div class="alert alert-success" style="margin:0;">
+            <i class="bi bi-file-earmark-check"></i>
+            <div>
+                <strong>Resume on file</strong><br>
+                <span style="font-size:13px;">We will use your uploaded resume so the interview does not repeat what we already know.</span>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info" style="margin:0;">
+            <i class="bi bi-upload"></i>
+            <div>
+                <strong>Tip</strong><br>
+                <span style="font-size:13px;"><a href="{% url 'users:resume_upload' %}">Upload a resume</a> first for even smarter questions.</span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% endblock %}

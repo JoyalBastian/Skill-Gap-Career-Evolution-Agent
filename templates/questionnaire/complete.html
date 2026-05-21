@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Analysis Complete — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div style="max-width:640px;margin:40px auto;">
+
+    <div style="width:80px;height:80px;background:linear-gradient(135deg,var(--primary),#7c3aed);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 8px 32px rgba(79,70,229,.3);">
+        <i class="bi bi-check-lg" style="font-size:36px;color:white;"></i>
+    </div>
+
+    <h1 style="font-size:28px;font-weight:700;margin-bottom:12px;text-align:center;">AI Analysis Complete</h1>
+    <p style="color:var(--text-muted);font-size:16px;line-height:1.7;margin-bottom:28px;text-align:center;">
+        Your responses were analyzed by Gemini. Review what was generated below.
+    </p>
+
+    <div class="card" style="margin-bottom:28px;">
+        <div class="card-header"><i class="bi bi-list-check"></i> Pipeline Status</div>
+        <div class="card-body">
+            <ul class="pipeline-checklist">
+                <li>
+                    <span class="status-icon {% if pipeline_status.predictions_ok %}ok{% else %}fail{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.predictions_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                    </span>
+                    Career predictions
+                </li>
+                <li>
+                    <span class="status-icon {% if pipeline_status.gap_ok %}ok{% else %}fail{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.gap_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                    </span>
+                    Skill gap report
+                </li>
+                <li>
+                    <span class="status-icon {% if pipeline_status.recs_ok %}ok{% else %}fail{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.recs_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                    </span>
+                    Recommendations
+                </li>
+                <li>
+                    <span class="status-icon {% if pipeline_status.roadmap_ok %}ok{% else %}fail{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.roadmap_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                    </span>
+                    Learning roadmap
+                </li>
+            </ul>
+            {% if not pipeline_status.predictions_ok %}
+            <div class="alert alert-warning" style="margin:0;">
+                <i class="bi bi-exclamation-triangle"></i>
+                Some results may be missing. Visit Career Matches and use Refresh, or retake the interview.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    {% include "partials/_next_step.html" %}
+
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+        <a href="{% url 'careers:predictions' %}" class="btn btn-ghost btn-lg">
+            <i class="bi bi-briefcase"></i> Career Predictions
+        </a>
+        <a href="{% url 'users:dashboard' %}" class="btn btn-ghost btn-lg">
+            <i class="bi bi-house-door"></i> Dashboard
+        </a>
+    </div>
+
+</div>
+
+{% endblock %}

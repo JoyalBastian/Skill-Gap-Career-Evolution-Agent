@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}Resume Analysis — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <h1>Resume Analysis Complete</h1>
+    <p>Here's what Gemini extracted from your resume</p>
+</div>
+
+{% if analysis %}
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:16px;margin-bottom:28px;">
+    <div class="stat-card success">
+        <div class="stat-label">Employability Score</div>
+        <div class="stat-value">{{ analysis.employability_score|floatformat:0 }}%</div>
+        <div class="stat-sub">Based on detected skills</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Experience</div>
+        <div class="stat-value">{{ analysis.experience_years|floatformat:0 }} yrs</div>
+        <div class="stat-sub">Detected from resume</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Skills Found</div>
+        <div class="stat-value">{{ analysis.skills_detected|length }}</div>
+        <div class="stat-sub">Extracted by Gemini</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">Education</div>
+        <div class="stat-value" style="font-size:20px;">{{ analysis.education|length }}</div>
+        <div class="stat-sub">Entries detected</div>
+    </div>
+</div>
+
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+    <div class="card">
+        <div class="card-header"><i class="bi bi-puzzle"></i> Detected Skills</div>
+        <div class="card-body tag-cloud">
+            {% for skill in analysis.skills_detected %}
+            <span class="skill-tag present">
+                <i class="bi bi-check"></i> {{ skill.name }}
+                <span style="opacity:.7;font-size:11px;">({{ skill.confidence }})</span>
+            </span>
+            {% empty %}
+            <p style="color:var(--text-muted);font-size:14px;">No skills detected. Try uploading a more detailed resume.</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:16px;">
+        {% if analysis.education %}
+        <div class="card">
+            <div class="card-header"><i class="bi bi-mortarboard"></i> Education</div>
+            <div class="card-body" style="padding:16px;">
+                {% for edu in analysis.education %}
+                <div style="padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">
+                    {% if edu.degree %}<strong>{{ edu.degree }}</strong>{% if edu.field %} in {{ edu.field }}{% endif %}<br>{% endif %}
+                    {% if edu.institution %}<span style="color:var(--text-muted);">{{ edu.institution }}</span>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-header"><i class="bi bi-file-text"></i> AI Summary</div>
+            <div class="card-body">
+                <p style="font-size:14px;color:var(--text-muted);margin:0;line-height:1.7;">{{ analysis.summary }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% include "partials/_next_step.html" %}
+
+{% else %}
+<div class="card">
+    <div class="card-body empty-state">
+        <div class="empty-state-icon"><i class="bi bi-exclamation-triangle"></i></div>
+        <h2>Analysis not available</h2>
+        <p>Please try uploading your resume again.</p>
+        <div class="empty-state-actions">
+            <a href="{% url 'users:resume_upload' %}" class="btn btn-primary">
+                <i class="bi bi-file-earmark-arrow-up"></i> Upload Resume
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

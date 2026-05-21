@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if user.is_authenticated %}
+<nav class="app-navbar">
+    <a href="{% url 'users:dashboard' %}" class="brand">
+        <i class="bi bi-graph-up-arrow"></i> {{ SITE_NAME }}
+    </a>
+    <div class="nav-right">
+        <span class="user-chip"><i class="bi bi-person-circle"></i> {{ user.username }}</span>
+        <a href="{% url 'authentication:logout' %}" class="btn-logout"><i class="bi bi-box-arrow-right"></i> Logout</a>
+    </div>
+</nav>
+
+<div class="app-layout">
+    <aside class="app-sidebar">
+        <span class="sidebar-section">Main</span>
+        <a href="{% url 'users:dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+            <i class="bi bi-house-door"></i> Dashboard
+        </a>
+
+        <span class="sidebar-section">Assessment</span>
+        <a href="{% url 'users:resume_upload' %}" class="sidebar-link {% if 'resume' in request.path %}active{% endif %}{% if journey and 'users:resume_upload' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-file-earmark-person"></i> Upload Resume
+        </a>
+        <a href="{% url 'questionnaire:start' %}" class="sidebar-link {% if 'questionnaire' in request.path %}active{% endif %}">
+            <i class="bi bi-chat-square-dots"></i> AI Interview
+        </a>
+        <a href="{% url 'skills:list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'list' and 'skills' in request.path %}active{% endif %}{% if journey and 'skills:list' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-tags"></i> My Skills
+            {% if journey and 'skills:list' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+
+        <span class="sidebar-section">Results</span>
+        <a href="{% url 'careers:predictions' %}" class="sidebar-link {% if 'careers' in request.path %}active{% endif %}{% if journey and 'careers:predictions' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-briefcase"></i> Career Matches
+            {% if journey and 'careers:predictions' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        <a href="{% url 'skills:gap' %}" class="sidebar-link {% if request.resolver_match.url_name == 'gap' %}active{% endif %}{% if journey and 'skills:gap' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-puzzle"></i> Skill Gaps
+            {% if journey and 'skills:gap' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        <a href="{% url 'roadmap:list' %}" class="sidebar-link {% if 'roadmap' in request.path %}active{% endif %}{% if journey and 'roadmap:list' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-map"></i> Learning Roadmap
+            {% if journey and 'roadmap:list' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        <a href="{% url 'recommendations:list' %}" class="sidebar-link {% if 'recommendations' in request.path %}active{% endif %}{% if journey and 'recommendations:list' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-lightbulb"></i> Recommendations
+            {% if journey and 'recommendations:list' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        <a href="{% url 'jobs:trending' %}" class="sidebar-link {% if 'jobs' in request.path %}active{% endif %}{% if journey and 'jobs:trending' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-fire"></i> Trending Jobs
+            {% if journey and 'jobs:trending' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+
+        <span class="sidebar-section">Track</span>
+        <a href="{% url 'progress:dashboard' %}" class="sidebar-link {% if 'progress' in request.path %}active{% endif %}{% if journey and 'progress:dashboard' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-bar-chart-line"></i> My Progress
+            {% if journey and 'progress:dashboard' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        <a href="{% url 'analytics:dashboard' %}" class="sidebar-link {% if 'analytics' in request.path and 'chat' not in request.path %}active{% endif %}{% if journey and 'analytics:dashboard' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-graph-up"></i> Analytics
+            {% if journey and 'analytics:dashboard' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        {% if CHATBOT_ENABLED %}
+        <a href="{% url 'analytics:chat' %}" class="sidebar-link {% if 'chat' in request.path %}active{% endif %}{% if journey and 'analytics:chat' in journey.locked_pages %} locked{% endif %}">
+            <i class="bi bi-robot"></i> AI Chat
+            {% if journey and 'analytics:chat' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
+        </a>
+        {% endif %}
+
+        <span class="sidebar-section">Account</span>
+        <a href="{% url 'users:profile' %}" class="sidebar-link {% if request.resolver_match.url_name == 'profile' %}active{% endif %}">
+            <i class="bi bi-person-gear"></i> Profile
+        </a>
+    </aside>
+
+    <main class="app-main">
+        {% include "partials/_error_banner.html" %}
+        {% if messages %}
+        {% for message in messages %}
+        {% if message.tags != "error" %}
+        <div class="alert alert-{{ message.tags }}">
+            <i class="bi bi-info-circle"></i> {{ message }}
+        </div>
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+</div>
+
+{% include "partials/_loading_overlay.html" %}
+
+{% else %}
+<main class="app-main full-width">
+    {% block content_unauth %}{% endblock %}
+</main>
+{% endif %}
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const overlay = document.getElementById('aiLoadingOverlay');
+    if (!overlay) return;
+    const stageEl = document.getElementById('aiStageText');
+    const progressEl = document.getElementById('aiProgressFill');
+    let timer = null;
+
+    function showLoader(stages) {
+        const steps = stages.length ? stages : ['Working with AI…'];
+        let i = 0;
+        overlay.classList.add('active');
+        overlay.setAttribute('aria-hidden', 'false');
+        stageEl.textContent = steps[0];
+        progressEl.style.width = '15%';
+        timer = setInterval(function() {
+            i = (i + 1) % steps.length;
+            stageEl.textContent = steps[i];
+            progressEl.style.width = Math.min(15 + (i + 1) * (70 / steps.length), 85) + '%';
+        }, 2800);
+    }
+
+    function setSubmitButtonLoading(btn) {
+        if (!btn || btn.disabled) return;
+        const loadingText = btn.getAttribute('data-loading-text') || 'Loading…';
+        btn.disabled = true;
+        btn.classList.add('is-loading');
+        btn.setAttribute('aria-busy', 'true');
+        if (!btn.dataset.originalHtml) {
+            btn.dataset.originalHtml = btn.innerHTML;
+        }
+        btn.innerHTML = '<span class="btn-spinner" aria-hidden="true"></span><span>' + loadingText + '</span>';
+    }
+
+    window.SkillGapUI = { showLoader: showLoader, setSubmitButtonLoading: setSubmitButtonLoading };
+
+    document.querySelectorAll('form[data-ai-loader]').forEach(function(form) {
+        form.addEventListener('submit', function(e) {
+            if (e.defaultPrevented) return;
+            const btn = form.querySelector('[type="submit"]');
+            if (btn && btn.disabled) {
+                e.preventDefault();
+                return;
+            }
+            let stages = ['Working with AI…'];
+            try {
+                const raw = form.getAttribute('data-ai-stages');
+                if (raw) stages = JSON.parse(raw);
+            } catch (e) {}
+            setSubmitButtonLoading(btn);
+            const overlayOnly = form.getAttribute('data-ai-overlay') !== 'false';
+            if (overlayOnly) showLoader(stages);
+        });
+    });
+})();
+</script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

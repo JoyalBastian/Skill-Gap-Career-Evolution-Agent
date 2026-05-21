@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ career.name }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<a href="{% url 'careers:predictions' %}" class="btn btn-ghost btn-sm" style="margin-bottom:16px;"><i class="bi bi-arrow-left"></i> Back to Predictions</a>
+
+<div class="page-header-row">
+    <div class="page-header">
+        <h1>{{ career.name }}</h1>
+        <p>{{ career.description }}</p>
+    </div>
+    {% if prediction %}
+    <span class="badge badge-primary" style="font-size:15px;padding:8px 14px;">{{ prediction.confidence_pct }}% match</span>
+    {% endif %}
+</div>
+
+{% include "partials/_ai_disclaimer.html" %}
+
+{% if prediction %}
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-header"><i class="bi bi-stars"></i> Why Gemini Matched You</div>
+    <div class="card-body">
+        <p style="margin:0;font-size:14px;line-height:1.7;color:var(--text-muted);">{{ prediction.explanation_text }}</p>
+        <div class="progress-track" style="margin-top:16px;">
+            <div class="progress-fill success" style="width:{{ prediction.confidence_pct }}%;"></div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if gap_report %}
+<div class="alert alert-success">
+    <i class="bi bi-check-circle"></i>
+    Employability for this career: <strong>{{ gap_report.employability_score|floatformat:0 }}%</strong>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;">
+            <div style="font-weight:600;margin-bottom:4px;">Run skill gap analysis</div>
+            <div style="font-size:13px;color:var(--text-muted);">Gemini compares your skills to this career path.</div>
+        </div>
+        <form method="post" data-ai-loader="true" data-ai-stages='["Comparing your skills…","Identifying gaps with Gemini…","Saving report…"]'>
+            {% csrf_token %}
+            <button class="btn btn-primary"><i class="bi bi-puzzle"></i> Analyze Skill Gaps</button>
+        </form>
+    </div>
+</div>
+
+{% if journey.has_gap_report %}
+{% include "partials/_next_step.html" %}
+{% endif %}
+
+{% endblock %}

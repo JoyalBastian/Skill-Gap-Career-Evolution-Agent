@@ -1,0 +1,23 @@
+<div class="card">
+    <div class="card-body empty-state">
+        <div class="empty-state-icon">
+            <i class="bi bi-{{ icon|default:'inbox' }}"></i>
+        </div>
+        <h2>{{ heading }}</h2>
+        <p>{{ body }}</p>
+        <div class="empty-state-actions">
+            {% if cta_url and cta_label %}
+            <a href="{{ cta_url }}" class="btn btn-primary">
+                {% if cta_icon %}<i class="bi bi-{{ cta_icon }}"></i>{% endif %}
+                {{ cta_label }}
+            </a>
+            {% endif %}
+            {% if secondary_url and secondary_label %}
+            <a href="{{ secondary_url }}" class="btn btn-ghost">
+                {% if secondary_icon %}<i class="bi bi-{{ secondary_icon }}"></i>{% endif %}
+                {{ secondary_label }}
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>

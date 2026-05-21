@@ -1,0 +1,29 @@
+{% if journey %}
+<div class="card" style="margin-bottom:28px;">
+    <div class="card-body">
+        <div style="font-weight:600;margin-bottom:20px;font-size:15px;">Your Progress</div>
+        <div class="onboard-steps">
+            <div class="onboard-step done">
+                <div class="step-circle"><i class="bi bi-check"></i></div>
+                <div class="step-label">Account</div>
+            </div>
+            <div class="onboard-step {% if journey.has_resume %}done{% elif journey.next_step == 'resume' %}active{% endif %}">
+                <div class="step-circle">{% if journey.has_resume %}<i class="bi bi-check"></i>{% else %}2{% endif %}</div>
+                <div class="step-label">Resume</div>
+            </div>
+            <div class="onboard-step {% if journey.has_interview %}done{% elif journey.next_step == 'interview' %}active{% endif %}">
+                <div class="step-circle">{% if journey.has_interview %}<i class="bi bi-check"></i>{% else %}3{% endif %}</div>
+                <div class="step-label">AI Interview</div>
+            </div>
+            <div class="onboard-step {% if journey.has_predictions %}done{% elif journey.next_step == 'predictions' %}active{% endif %}">
+                <div class="step-circle">{% if journey.has_predictions %}<i class="bi bi-check"></i>{% else %}4{% endif %}</div>
+                <div class="step-label">Results</div>
+            </div>
+            <div class="onboard-step {% if journey.has_trending_match %}done{% elif journey.next_step == 'jobs' %}active{% endif %}">
+                <div class="step-circle">{% if journey.has_trending_match %}<i class="bi bi-check"></i>{% else %}5{% endif %}</div>
+                <div class="step-label">Trending Match</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
