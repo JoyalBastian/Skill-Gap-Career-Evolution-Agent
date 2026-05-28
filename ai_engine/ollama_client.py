@@ -20,7 +20,11 @@ def base_url() -> str:
 
 
 def timeout_seconds() -> int:
-    return int(getattr(settings, "OLLAMA_TIMEOUT", 120))
+    requested = int(getattr(settings, "OLLAMA_TIMEOUT", 120))
+    gunicorn_timeout = int(getattr(settings, "GUNICORN_TIMEOUT", 30))
+    # Keep provider timeout below worker timeout so request code can handle failures gracefully.
+    upper_bound = max(5, gunicorn_timeout - 5)
+    return max(5, min(requested, upper_bound))
 
 
 def ollama_is_reachable() -> bool:

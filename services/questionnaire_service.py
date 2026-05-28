@@ -7,7 +7,7 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from ai_engine.llm_client import GeminiUnavailable
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable
 from ai_engine.question_generator import (
     MAX_QUESTIONS,
     get_first_question,
@@ -208,14 +208,27 @@ class QuestionnaireService:
             if session.ai_answers.count() >= 3:
                 uus.build_local_persona_fallback(session.user_id, session_id=session.id)
 
-        CareerPredictionService().run_prediction(session.user_id)
+        try:
+            CareerPredictionService().run_prediction(session.user_id)
+        except LLMUnavailable as e:
+            logger.warning("Career prediction failed for user=%s: %s", session.user_id, e)
 
         prediction = session.user.career_predictions.order_by("rank").first()
         if prediction:
-            SkillGapService().analyze_gaps(session.user_id, prediction.career_id)
+            try:
+                SkillGapService().analyze_gaps(session.user_id, prediction.career_id)
+            except LLMUnavailable as e:
+                logger.warning("Skill gap analysis failed for user=%s: %s", session.user_id, e)
 
-        RecommendationService().generate_recommendations(session.user_id)
-        RoadmapService().generate_roadmap(session.user_id)
+        try:
+            RecommendationService().generate_recommendations(session.user_id)
+        except LLMUnavailable as e:
+            logger.warning("Recommendations failed for user=%s: %s", session.user_id, e)
+
+        try:
+            RoadmapService().generate_roadmap(session.user_id)
+        except LLMUnavailable as e:
+            logger.warning("Roadmap generation failed for user=%s: %s", session.user_id, e)
 
         return session
 

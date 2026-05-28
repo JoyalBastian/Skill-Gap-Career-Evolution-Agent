@@ -2,28 +2,47 @@
 {% block title %}Login — {{ SITE_NAME }}{% endblock %}
 {% block content_unauth %}
 <div class="auth-page">
-    <div class="auth-card">
-        <div class="auth-logo">
-            <i class="bi bi-graph-up-arrow"></i>
-            <h1>{{ SITE_NAME }}</h1>
-            <p>AI-powered career guidance platform</p>
-        </div>
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-            <div class="form-group">
-                <label class="form-label">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}<div style="color:var(--danger);font-size:13px;margin-top:4px;">{{ field.errors }}</div>{% endif %}
+    <div class="auth-layout">
+        <section class="auth-showcase">
+            <span class="auth-badge"><i class="bi bi-stars"></i> AI Career Copilot</span>
+            <h1>Welcome back. Continue your growth journey.</h1>
+            <p>Access your personalized dashboard, AI insights, roadmap, and progress tracking.</p>
+            <ul>
+                <li><i class="bi bi-check-circle-fill"></i> Resume-powered recommendations</li>
+                <li><i class="bi bi-check-circle-fill"></i> Targeted skill-gap analysis</li>
+                <li><i class="bi bi-check-circle-fill"></i> Career roadmap tracking</li>
+            </ul>
+        </section>
+        <section class="auth-card">
+            <div class="auth-logo">
+                <i class="bi bi-graph-up-arrow"></i>
+                <h2>{{ SITE_NAME }}</h2>
+                <p>Login to continue to your dashboard.</p>
             </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;">
-                <i class="bi bi-box-arrow-in-right"></i> Sign In
-            </button>
-        </form>
-        <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted);">
-            No account? <a href="{% url 'authentication:register' %}" style="color:var(--primary);font-weight:600;">Create one free</a>
-        </p>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="auth-error">{{ form.non_field_errors }}</div>
+                {% endif %}
+                {% for field in form %}
+                <div class="form-group">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<div class="auth-field-error">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary auth-submit">
+                    <i class="bi bi-box-arrow-in-right"></i> Sign In
+                </button>
+            </form>
+            <p class="auth-switch">
+                New here?
+                <a href="{% url 'authentication:register' %}">Create your account</a>
+            </p>
+            <p class="auth-switch">
+                <a href="{% url 'landing' %}"><i class="bi bi-arrow-left"></i> Back to home</a>
+            </p>
+        </section>
     </div>
 </div>
 {% endblock %}

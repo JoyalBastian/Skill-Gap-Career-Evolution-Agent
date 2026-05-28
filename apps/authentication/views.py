@@ -4,11 +4,21 @@ from django.contrib.auth.views import LoginView
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 from django.views import View
+from django.views.generic import TemplateView
 
 from core.sqlite import db_retry
 from services.authentication_service import AuthenticationService
 
 from .forms import LoginForm, RegisterForm
+
+
+class LandingPageView(TemplateView):
+    template_name = "authentication/landing.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated:
+            return redirect("users:dashboard")
+        return super().dispatch(request, *args, **kwargs)
 
 
 class RegisterView(View):

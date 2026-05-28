@@ -10,7 +10,7 @@ import logging
 
 from django.utils.text import slugify
 
-from ai_engine.llm_client import GeminiUnavailable, chat_json
+from ai_engine.llm_client import LLMUnavailable, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import CareerDomain, SkillGapReport
 from apps.skills.models import UserSkill
@@ -73,7 +73,7 @@ class SkillGapService:
 
         data = chat_json(prompt)
         if not isinstance(data, dict):
-            raise GeminiUnavailable("Skill gap analysis did not return a JSON object.")
+            raise LLMUnavailable("Skill gap analysis did not return a valid JSON object.", provider="unknown")
 
         employability = float(data.get("employability_score") or 0)
         employability = max(0, min(100, employability))
@@ -128,7 +128,7 @@ class SkillGapService:
                 })
 
         if not gaps:
-            raise GeminiUnavailable("Skill gap analysis returned no valid skills.")
+            raise LLMUnavailable("Skill gap analysis returned no valid skills.", provider="unknown")
 
         missing.sort(key=lambda g: g.get("importance", 0), reverse=True)
         prioritized = [

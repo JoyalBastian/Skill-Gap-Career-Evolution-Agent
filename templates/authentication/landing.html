@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}{{ SITE_NAME }} — AI Career Growth Platform{% endblock %}
+{% block content_unauth %}
+<header class="landing-topbar">
+    <a href="{% url 'landing' %}" class="landing-brand">
+        <i class="bi bi-graph-up-arrow"></i> {{ SITE_NAME }}
+    </a>
+    <nav class="landing-nav">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#about">About</a>
+    </nav>
+    <div class="landing-top-actions">
+        <a href="{% url 'authentication:login' %}" class="btn btn-ghost btn-sm">Login</a>
+        <a href="{% url 'authentication:register' %}" class="btn btn-primary btn-sm">Signup</a>
+    </div>
+</header>
+
+<section class="landing-hero">
+    <div class="landing-shell">
+        <div class="landing-copy">
+            <span class="landing-badge"><i class="bi bi-stars"></i> AI Career Copilot</span>
+            <h1>Transform your career with intelligent guidance.</h1>
+            <p>
+                Upload your resume, complete a short AI interview, and instantly get career predictions,
+                skill-gap insights, a personalized learning roadmap, and market-fit job recommendations.
+            </p>
+            <div class="landing-actions">
+                <a href="{% url 'authentication:register' %}" class="btn btn-primary btn-lg">Start Free</a>
+                <a href="{% url 'authentication:login' %}" class="btn btn-outline btn-lg">Login to Dashboard</a>
+            </div>
+            <div class="landing-trust">
+                <span><i class="bi bi-check-circle"></i> Top role matching</span>
+                <span><i class="bi bi-check-circle"></i> Gap prioritization</span>
+                <span><i class="bi bi-check-circle"></i> Actionable roadmap</span>
+            </div>
+        </div>
+        <aside class="landing-panel">
+            <h2>Career Insight Snapshot</h2>
+            <div class="landing-metric-grid">
+                <div class="landing-metric">
+                    <strong>5</strong>
+                    <span>Top Career Matches</span>
+                </div>
+                <div class="landing-metric">
+                    <strong>12</strong>
+                    <span>Gap Skills Identified</span>
+                </div>
+                <div class="landing-metric">
+                    <strong>8+</strong>
+                    <span>Roadmap Milestones</span>
+                </div>
+                <div class="landing-metric">
+                    <strong>24/7</strong>
+                    <span>AI Career Support</span>
+                </div>
+            </div>
+            <a href="{% url 'authentication:register' %}" class="btn btn-primary landing-panel-cta">Build My Plan</a>
+        </aside>
+    </div>
+</section>
+
+<section id="features" class="landing-section">
+    <div class="landing-container">
+        <div class="landing-section-head">
+            <span>Features</span>
+            <h2>Everything you need to accelerate career growth</h2>
+        </div>
+        <div class="landing-feature-grid">
+            <article class="landing-feature-card">
+                <i class="bi bi-file-earmark-person"></i>
+                <h3>Resume Intelligence</h3>
+                <p>Extract structured profile data from resume and personalize every recommendation.</p>
+            </article>
+            <article class="landing-feature-card">
+                <i class="bi bi-chat-dots"></i>
+                <h3>Adaptive AI Interview</h3>
+                <p>Capture intent, strengths, and goals through dynamic guided questions.</p>
+            </article>
+            <article class="landing-feature-card">
+                <i class="bi bi-bullseye"></i>
+                <h3>Career Match Predictions</h3>
+                <p>Get ranked role suggestions with fit confidence and practical explanations.</p>
+            </article>
+            <article class="landing-feature-card">
+                <i class="bi bi-puzzle"></i>
+                <h3>Skill Gap Analysis</h3>
+                <p>Identify high-impact missing skills and prioritize what to learn first.</p>
+            </article>
+            <article class="landing-feature-card">
+                <i class="bi bi-map"></i>
+                <h3>Roadmap Generation</h3>
+                <p>Follow a personalized learning roadmap mapped to your target role.</p>
+            </article>
+            <article class="landing-feature-card">
+                <i class="bi bi-briefcase"></i>
+                <h3>Job-Market Alignment</h3>
+                <p>Track trending opportunities and understand current readiness to apply.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="how-it-works" class="landing-section landing-section-soft">
+    <div class="landing-container">
+        <div class="landing-section-head">
+            <span>How It Works</span>
+            <h2>From profile upload to execution-ready growth plan</h2>
+        </div>
+        <div class="landing-steps">
+            <article class="landing-step">
+                <em>STEP 01</em>
+                <h3>Upload Resume</h3>
+                <p>We extract key skills and experience details from your profile.</p>
+            </article>
+            <article class="landing-step">
+                <em>STEP 02</em>
+                <h3>AI Interview</h3>
+                <p>Answer guided questions to personalize goals and career intent.</p>
+            </article>
+            <article class="landing-step">
+                <em>STEP 03</em>
+                <h3>Analyze Gaps</h3>
+                <p>Get role matches, confidence, and prioritized missing skills.</p>
+            </article>
+            <article class="landing-step">
+                <em>STEP 04</em>
+                <h3>Execute Roadmap</h3>
+                <p>Follow a practical learning roadmap and track measurable progress.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="about" class="landing-final-cta">
+    <div class="landing-container">
+        <div class="landing-final-card">
+            <h2>Ready to unlock your next career milestone?</h2>
+            <p>{{ SITE_NAME }} combines AI intelligence with structured execution so you can make focused progress.</p>
+            <div class="landing-actions">
+                <a href="{% url 'authentication:register' %}" class="btn btn-primary btn-lg">Create Account</a>
+                <a href="{% url 'authentication:login' %}" class="btn btn-outline btn-lg">Login</a>
+            </div>
+        </div>
+    </div>
+</section>
+
+<footer class="landing-footer">
+    <div class="landing-container">
+        <p>&copy; {% now "Y" %} {{ SITE_NAME }}. All rights reserved.</p>
+    </div>
+</footer>
+{% endblock %}

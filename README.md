@@ -9,6 +9,7 @@ You can run it **locally on your machine** or **with Docker** (Django + Ollama i
 | **Gemini** (`AI_PROVIDER=gemini`) | Cloud API, strong JSON | Google API key, internet |
 | **Ollama** (`AI_PROVIDER=ollama`) | No quota limits, private | Ollama installed or Docker GPU stack |
 
+
 ---
 
 ## What you need before starting

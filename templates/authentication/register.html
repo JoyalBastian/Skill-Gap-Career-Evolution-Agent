@@ -2,28 +2,47 @@
 {% block title %}Register — {{ SITE_NAME }}{% endblock %}
 {% block content_unauth %}
 <div class="auth-page">
-    <div class="auth-card">
-        <div class="auth-logo">
-            <i class="bi bi-graph-up-arrow"></i>
-            <h1>Get Started</h1>
-            <p>Create your free account to begin your AI career assessment</p>
-        </div>
-        <form method="post">
-            {% csrf_token %}
-            {% for field in form %}
-            <div class="form-group">
-                <label class="form-label">{{ field.label }}</label>
-                {{ field }}
-                {% if field.errors %}<div style="color:var(--danger);font-size:13px;margin-top:4px;">{{ field.errors }}</div>{% endif %}
+    <div class="auth-layout">
+        <section class="auth-showcase">
+            <span class="auth-badge"><i class="bi bi-stars"></i> Get Started Fast</span>
+            <h1>Create your account and start your AI career plan.</h1>
+            <p>Setup takes less than 2 minutes. Get role fit, gap analysis, and roadmap guidance instantly.</p>
+            <ul>
+                <li><i class="bi bi-check-circle-fill"></i> Smart profile understanding</li>
+                <li><i class="bi bi-check-circle-fill"></i> Personalized learning path</li>
+                <li><i class="bi bi-check-circle-fill"></i> Ongoing progress tracking</li>
+            </ul>
+        </section>
+        <section class="auth-card">
+            <div class="auth-logo">
+                <i class="bi bi-graph-up-arrow"></i>
+                <h2>{{ SITE_NAME }}</h2>
+                <p>Start your free AI-powered assessment journey.</p>
             </div>
-            {% endfor %}
-            <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:8px;">
-                <i class="bi bi-person-plus"></i> Create Account
-            </button>
-        </form>
-        <p style="text-align:center;margin-top:20px;font-size:14px;color:var(--text-muted);">
-            Already have an account? <a href="{% url 'authentication:login' %}" style="color:var(--primary);font-weight:600;">Sign in</a>
-        </p>
+            <form method="post" novalidate>
+                {% csrf_token %}
+                {% if form.non_field_errors %}
+                <div class="auth-error">{{ form.non_field_errors }}</div>
+                {% endif %}
+                {% for field in form %}
+                <div class="form-group">
+                    <label class="form-label">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<div class="auth-field-error">{{ field.errors }}</div>{% endif %}
+                </div>
+                {% endfor %}
+                <button type="submit" class="btn btn-primary auth-submit">
+                    <i class="bi bi-person-plus"></i> Create Account
+                </button>
+            </form>
+            <p class="auth-switch">
+                Already have an account?
+                <a href="{% url 'authentication:login' %}">Sign in</a>
+            </p>
+            <p class="auth-switch">
+                <a href="{% url 'landing' %}"><i class="bi bi-arrow-left"></i> Back to home</a>
+            </p>
+        </section>
     </div>
 </div>
 {% endblock %}

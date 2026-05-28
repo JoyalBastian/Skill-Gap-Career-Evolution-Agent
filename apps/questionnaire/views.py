@@ -3,7 +3,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
-from ai_engine.llm_client import GeminiUnavailable, user_message_for
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, user_message_for
 from apps.questionnaire.models import AIQuestion, QuestionnaireSession
 from apps.users.models import Profile
 from services.questionnaire_service import QuestionnaireService
@@ -67,7 +67,7 @@ class QuestionnaireStartView(LoginRequiredMixin, View):
 
         try:
             session = svc.start_session(request.user)
-        except GeminiUnavailable as e:
+        except (GeminiUnavailable, LLMUnavailable) as e:
             messages.error(request, user_message_for(e))
             return redirect("questionnaire:start")
 
@@ -137,7 +137,7 @@ class QuestionView(LoginRequiredMixin, View):
 
         try:
             next_question = svc.generate_next_question(session)
-        except GeminiUnavailable as e:
+        except (GeminiUnavailable, LLMUnavailable) as e:
             messages.error(
                 request,
                 user_message_for(e) + " Your answer was saved — please refresh to retry.",
@@ -149,7 +149,7 @@ class QuestionView(LoginRequiredMixin, View):
 
         try:
             svc.complete_session(session.id)
-        except GeminiUnavailable:
+        except LLMUnavailable:
             messages.warning(
                 request,
                 "AI analysis was partially unavailable. Some results may be missing until you retry.",

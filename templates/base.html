@@ -12,9 +12,13 @@
     {% block extra_css %}{% endblock %}
 </head>
 <body>
+<a href="#mainContent" class="skip-link">Skip to main content</a>
 
 {% if user.is_authenticated %}
 <nav class="app-navbar">
+    <button class="nav-toggle" id="navToggle" type="button" aria-label="Toggle navigation" aria-expanded="false" aria-controls="appSidebar">
+        <i class="bi bi-list"></i>
+    </button>
     <a href="{% url 'users:dashboard' %}" class="brand">
         <i class="bi bi-graph-up-arrow"></i> {{ SITE_NAME }}
     </a>
@@ -25,7 +29,7 @@
 </nav>
 
 <div class="app-layout">
-    <aside class="app-sidebar">
+    <aside class="app-sidebar" id="appSidebar">
         <span class="sidebar-section">Main</span>
         <a href="{% url 'users:dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
             <i class="bi bi-house-door"></i> Dashboard
@@ -87,7 +91,7 @@
         </a>
     </aside>
 
-    <main class="app-main">
+    <main class="app-main" id="mainContent">
         {% include "partials/_error_banner.html" %}
         {% if messages %}
         {% for message in messages %}
@@ -113,6 +117,26 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 (function() {
+    const navToggle = document.getElementById('navToggle');
+    const appSidebar = document.getElementById('appSidebar');
+    if (navToggle && appSidebar) {
+        navToggle.addEventListener('click', function() {
+            const isOpen = appSidebar.classList.toggle('open');
+            navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            document.body.classList.toggle('sidebar-open', isOpen);
+        });
+
+        appSidebar.querySelectorAll('.sidebar-link').forEach(function(link) {
+            link.addEventListener('click', function() {
+                if (window.matchMedia('(max-width: 768px)').matches) {
+                    appSidebar.classList.remove('open');
+                    document.body.classList.remove('sidebar-open');
+                    navToggle.setAttribute('aria-expanded', 'false');
+                }
+            });
+        });
+    }
+
     const overlay = document.getElementById('aiLoadingOverlay');
     if (!overlay) return;
     const stageEl = document.getElementById('aiStageText');
