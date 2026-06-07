@@ -69,7 +69,7 @@ def _client():
     return genai.Client(api_key=api_key)
 
 
-def _parse_api_error(exc: Exception) -> tuple[bool, float | None, int | None]:
+def _parse_api_error(exc: Exception) -> tuple[bool, bool, float | None, int | None]:
     text = str(exc)
     upper = text.upper()
     is_quota = (
@@ -78,7 +78,24 @@ def _parse_api_error(exc: Exception) -> tuple[bool, float | None, int | None]:
         or "QUOTA" in upper
         or "RATE_LIMIT" in upper
     )
-    code = 429 if is_quota else None
+    is_transient = (
+        "503" in text
+        or "502" in text
+        or "504" in text
+        or "UNAVAILABLE" in upper
+        or "HIGH DEMAND" in upper
+        or "OVERLOADED" in upper
+        or "DEADLINE EXCEEDED" in upper
+    )
+    code: int | None = None
+    if is_quota:
+        code = 429
+    elif "503" in text or "UNAVAILABLE" in upper:
+        code = 503
+    elif "504" in text or "DEADLINE EXCEEDED" in upper:
+        code = 504
+    elif "502" in text:
+        code = 502
     retry_after: float | None = None
     for pattern in (
         r"retry in (\d+(?:\.\d+)?)\s*s",
@@ -89,20 +106,31 @@ def _parse_api_error(exc: Exception) -> tuple[bool, float | None, int | None]:
         if m:
             retry_after = float(m.group(1))
             break
-    return is_quota, retry_after, code
+    return is_quota, is_transient, retry_after, code
 
 
 def _wrap_error(exc: Exception) -> LLMUnavailable:
     if isinstance(exc, LLMUnavailable):
         return exc
-    is_quota, retry_after, code = _parse_api_error(exc)
+    is_quota, is_transient, retry_after, code = _parse_api_error(exc)
     return LLMUnavailable(
         str(exc),
         code=code,
         retry_after_seconds=retry_after,
         is_quota=is_quota,
+        is_transient=is_transient,
         provider="gemini",
     )
+
+
+def _retry_delay(attempt: int, retry_after: float | None) -> float:
+    if retry_after and retry_after > 0:
+        return min(retry_after + 0.5, 60)
+    return min(2 ** attempt, 8)
+
+
+def _max_retries() -> int:
+    return max(1, int(getattr(settings, "GEMINI_MAX_RETRIES", 3)))
 
 
 def _build_sdk_config(gen: GenConfig):
@@ -135,9 +163,10 @@ def _generate_with_fallback(client, prompt: str, gen: GenConfig) -> str:
     last_exc: Exception | None = None
     models = _models_to_try()
     primary = model_name()
+    max_attempts = _max_retries()
 
-    for m in models:
-        for attempt in range(2):
+    for model_idx, m in enumerate(models):
+        for attempt in range(max_attempts):
             try:
                 response = _generate_content(client, m, prompt, gen)
                 text = (response.text or "").strip()
@@ -146,17 +175,22 @@ def _generate_with_fallback(client, prompt: str, gen: GenConfig) -> str:
                 return text
             except Exception as e:
                 last_exc = e
-                is_quota, retry_after, _ = _parse_api_error(e)
+                is_quota, is_transient, retry_after, _ = _parse_api_error(e)
+                retriable = is_quota or is_transient
                 logger.warning(
-                    "Gemini call failed (model=%s, attempt=%s): %s",
+                    "Gemini call failed (model=%s, attempt=%s/%s): %s",
                     m,
                     attempt + 1,
+                    max_attempts,
                     e,
                 )
-                if is_quota and retry_after and 0 < retry_after <= 90 and attempt == 0:
-                    time.sleep(min(retry_after + 0.5, 90))
+                if retriable and attempt < max_attempts - 1:
+                    delay = _retry_delay(attempt, retry_after)
+                    logger.info("Retrying Gemini in %.1fs (model=%s)", delay, m)
+                    time.sleep(delay)
                     continue
-                if is_quota and m != models[-1]:
+                if retriable and model_idx < len(models) - 1:
+                    logger.info("Switching Gemini fallback model after failure on %s", m)
                     break
                 raise _wrap_error(e) from e
 

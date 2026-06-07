@@ -38,12 +38,14 @@ class LLMUnavailable(RuntimeError):
         code: int | None = None,
         retry_after_seconds: float | None = None,
         is_quota: bool = False,
+        is_transient: bool = False,
         provider: str = "llm",
     ):
         super().__init__(message)
         self.code = code
         self.retry_after_seconds = retry_after_seconds
         self.is_quota = is_quota
+        self.is_transient = is_transient
         self.provider = provider
 
     @property
@@ -68,6 +70,11 @@ class LLMUnavailable(RuntimeError):
             return (
                 "Local AI (Ollama) failed to respond. Check that Ollama is running and "
                 f"the model '{model}' is installed (ollama pull {model})."
+            )
+        if self.is_transient or self.code in (502, 503, 504):
+            return (
+                "Gemini is temporarily busy due to high demand. "
+                "Please wait a few seconds and try again — your progress is saved."
             )
         if self.is_quota or self.code == 429:
             parts = [

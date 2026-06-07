@@ -18,6 +18,7 @@ env = environ.Env(
     GEMINI_ENABLED=(bool, False),
     RUN_AI_PIPELINE_ON_RESUME=(bool, False),
     OLLAMA_TIMEOUT=(int, 120),
+    GEMINI_MAX_RETRIES=(int, 3),
 )
 
 # Load environment from backend/.env (same folder as manage.py)
@@ -145,6 +146,7 @@ GEMINI_FALLBACK_MODELS = env(
     "GEMINI_FALLBACK_MODELS",
     default="gemini-2.0-flash,gemini-flash-latest",
 )
+GEMINI_MAX_RETRIES = env("GEMINI_MAX_RETRIES")
 RUN_AI_PIPELINE_ON_RESUME = env("RUN_AI_PIPELINE_ON_RESUME", default=False)
 GEMINI_ENABLED = env("GEMINI_ENABLED")
 
