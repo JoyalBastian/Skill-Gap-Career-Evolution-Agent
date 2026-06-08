@@ -10,7 +10,9 @@ from __future__ import annotations
 
 from ai_engine.llm_client import GeminiUnavailable, chat_json
 
-MAX_QUESTIONS = 12
+MAX_QUESTIONS = 7
+RECENT_HISTORY_TURNS = 3
+_QUESTION_MAX_TOKENS = 384
 
 _DEFAULT_CHOICE_OPTIONS = [
     "Strongly agree",
@@ -29,8 +31,9 @@ def _build_prompt(
 ) -> str:
     history_text = ""
     last_answer = ""
-    for turn in conversation_history:
-        history_text += f"Q: {turn.get('question', '')}\nA: {turn.get('answer', '')}\n\n"
+    recent = conversation_history[-RECENT_HISTORY_TURNS:] if conversation_history else []
+    for turn in recent:
+        history_text += f"Q: {turn.get('question', '')[:200]}\nA: {turn.get('answer', '')[:200]}\n\n"
         if turn.get("answer"):
             last_answer = turn.get("answer", "")
 
@@ -53,9 +56,9 @@ def _build_prompt(
             f"- Name: {resume_context.get('full_name', 'unknown')}\n"
             f"- Current Title: {resume_context.get('current_title', 'unknown')}\n"
             f"- Experience: {resume_context.get('experience_years', 0)} years ({resume_context.get('experience_level', 'unknown')} level)\n"
-            f"- Skills: {', '.join(resume_context.get('skills', [])[:10])}\n"
+            f"- Skills: {', '.join(resume_context.get('skills', [])[:6])}\n"
             f"- Education: {edu or 'unknown'}\n"
-            f"- Certifications: {', '.join(resume_context.get('certifications', []))}\n"
+            f"- Certifications: {', '.join(resume_context.get('certifications', [])[:3])}\n"
             f"- Career Domain: {resume_context.get('career_domain', 'unknown')}\n\n"
             "Focus ONLY on:\n"
             "- Career goals and aspirations\n"
@@ -67,7 +70,7 @@ def _build_prompt(
     last_answer_hint = ""
     if last_answer:
         last_answer_hint = (
-            f"The user's last answer was: \"{last_answer[:500]}\"\n"
+            f"The user's last answer was: \"{last_answer[:200]}\"\n"
             "Your next question MUST build on that answer — reference a specific detail from it.\n\n"
         )
 
@@ -102,7 +105,7 @@ def _interview_prep_section(resume_context: dict | None) -> str:
         return ""
     lines = ["User provided this information before the interview:"]
     if prep.get("career_goals"):
-        lines.append(f"- Career goals: {prep['career_goals']}")
+        lines.append(f"- Career goals: {prep['career_goals'][:300]}")
     if prep.get("focus_areas"):
         lines.append(f"- Areas to explore: {prep['focus_areas']}")
     if prep.get("current_title"):
@@ -196,7 +199,7 @@ def _normalize(
 def get_first_question(resume_context: dict | None = None) -> dict:
     """Return the opening question. Raises GeminiUnavailable on failure."""
     prompt = _build_first_prompt(resume_context)
-    data = chat_json(prompt, temperature=0.5)
+    data = chat_json(prompt, temperature=0.4, max_output_tokens=_QUESTION_MAX_TOKENS)
     normalized = _normalize(data, default_topic="introduction", question_number=1)
     if not normalized:
         raise GeminiUnavailable("Gemini did not return a valid first question.")
@@ -219,7 +222,7 @@ def get_next_question(
         resume_context,
         topics_covered=topics_covered,
     )
-    data = chat_json(prompt, temperature=0.5)
+    data = chat_json(prompt, temperature=0.4, max_output_tokens=_QUESTION_MAX_TOKENS)
     normalized = _normalize(data, question_number=question_number)
     if not normalized:
         raise GeminiUnavailable("Gemini did not return a valid next question.")

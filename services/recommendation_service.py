@@ -7,8 +7,9 @@ the user that URLs may need verification.
 from __future__ import annotations
 
 import logging
+import threading
 
-from ai_engine.llm_client import GeminiUnavailable, chat_json
+from ai_engine.llm_client import GeminiUnavailable, active_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import SkillGapReport
 from apps.recommendations.models import LearningResource, Recommendation
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 VALID_TYPES = {"course", "certification", "project", "technology", "book"}
 VALID_LEVELS = {"beginner", "intermediate", "advanced"}
 
+_rec_lock = threading.Lock()
+_rec_running_users: set[int] = set()
+
 
 def _valid_url(url: str) -> str:
     u = (url or "").strip()
@@ -29,7 +33,52 @@ def _valid_url(url: str) -> str:
 
 
 class RecommendationService:
-    def generate_recommendations(self, user_id: int, top_n: int = 12) -> list[Recommendation]:
+    def default_top_n(self) -> int:
+        return 6 if active_provider() == "ollama" else 12
+
+    def is_generating(self, user_id: int) -> bool:
+        with _rec_lock:
+            return user_id in _rec_running_users
+
+    def start_generate_async(self, user_id: int) -> str:
+        """
+        Generate recommendations in a background thread.
+        Returns: 'done', 'running', or 'started'.
+        """
+        if Recommendation.objects.filter(user_id=user_id).exists():
+            return "done"
+
+        with _rec_lock:
+            if user_id in _rec_running_users:
+                return "running"
+            _rec_running_users.add(user_id)
+
+        def _run() -> None:
+            try:
+                self.generate_recommendations(user_id)
+            except Exception:
+                logger.exception(
+                    "Background recommendation generation failed for user=%s",
+                    user_id,
+                )
+            finally:
+                with _rec_lock:
+                    _rec_running_users.discard(user_id)
+
+        threading.Thread(
+            target=_run,
+            daemon=True,
+            name=f"recs-{user_id}",
+        ).start()
+        return "started"
+
+    def generate_recommendations(
+        self,
+        user_id: int,
+        top_n: int | None = None,
+    ) -> list[Recommendation]:
+        top_n = top_n or self.default_top_n()
+        max_tokens = 2048 if active_provider() == "ollama" else 3072
         profile_text = UserUnderstandingService().get_user_profile_text(user_id)
 
         profile = Profile.objects.filter(user_id=user_id).first()
@@ -83,7 +132,7 @@ class RecommendationService:
             "}"
         )
 
-        data = chat_json(prompt)
+        data = chat_json(prompt, max_output_tokens=max_tokens)
         items = []
         if isinstance(data, dict):
             items = data.get("recommendations") or []

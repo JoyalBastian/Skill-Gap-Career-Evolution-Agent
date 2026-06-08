@@ -54,8 +54,34 @@ class LLMUnavailable(RuntimeError):
             base = (
                 getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434") or ""
             ).rstrip("/")
-            model = getattr(settings, "OLLAMA_MODEL", "llama3.2")
-            if "connect" in str(self).lower() or "not running" in str(self).lower():
+            model = getattr(settings, "OLLAMA_MODEL", "llama3.2:1b")
+            msg = str(self).lower()
+            if "timed out" in msg or "timeout" in msg:
+                return (
+                    f"Ollama took too long to respond (model: {model}). "
+                    "The model may still be loading — wait a minute and try again."
+                )
+            if "not installed" in msg or "not found" in msg:
+                return (
+                    f"Ollama model '{model}' is not installed. "
+                    f"Run: ollama pull {model}"
+                )
+            if "truncated" in msg or "not valid json" in msg:
+                return (
+                    "Ollama returned incomplete JSON. "
+                    "Try again, or set OLLAMA_DEFAULT_MAX_TOKENS=2048 in .env."
+                )
+            if "empty response" in msg:
+                return (
+                    f"Ollama returned no text (model: {model}). "
+                    "The model may still be loading — wait and try again."
+                )
+            if self.is_transient or "busy" in msg or "still loading" in msg:
+                return (
+                    f"Ollama is busy or still loading model '{model}'. "
+                    "Wait a few seconds and try again."
+                )
+            if "connect" in msg or "cannot connect" in msg:
                 if "ollama:" in base or base.endswith("//ollama"):
                     return (
                         f"Cannot reach Ollama at {base}. "

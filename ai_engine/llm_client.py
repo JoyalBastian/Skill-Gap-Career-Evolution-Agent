@@ -55,9 +55,14 @@ def _gen_config(
     temperature: float | None,
     max_output_tokens: int | None,
 ) -> GenConfig:
+    if max_output_tokens is None:
+        if active_provider() == "ollama":
+            max_output_tokens = int(getattr(settings, "OLLAMA_DEFAULT_MAX_TOKENS", 768))
+        else:
+            max_output_tokens = DEFAULT_MAX_OUTPUT_TOKENS
     return GenConfig(
         temperature=temperature if temperature is not None else DEFAULT_TEMPERATURE,
-        max_output_tokens=max_output_tokens or DEFAULT_MAX_OUTPUT_TOKENS,
+        max_output_tokens=max_output_tokens,
         json_mode=json_mode,
     )
 

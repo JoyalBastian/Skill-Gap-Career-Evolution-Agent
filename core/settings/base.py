@@ -18,7 +18,11 @@ env = environ.Env(
     GEMINI_ENABLED=(bool, False),
     RUN_AI_PIPELINE_ON_RESUME=(bool, False),
     OLLAMA_TIMEOUT=(int, 120),
+    OLLAMA_DEFAULT_MAX_TOKENS=(int, 2048),
+    OLLAMA_NUM_CTX=(int, 2048),
+    OLLAMA_MAX_RETRIES=(int, 2),
     GEMINI_MAX_RETRIES=(int, 3),
+    GUNICORN_TIMEOUT=(int, 300),
 )
 
 # Load environment from backend/.env (same folder as manage.py)
@@ -151,7 +155,12 @@ RUN_AI_PIPELINE_ON_RESUME = env("RUN_AI_PIPELINE_ON_RESUME", default=False)
 GEMINI_ENABLED = env("GEMINI_ENABLED")
 
 OLLAMA_BASE_URL = env("OLLAMA_BASE_URL", default="http://localhost:11434")
-OLLAMA_MODEL = env("OLLAMA_MODEL", default="llama3.2")
+OLLAMA_MODEL = env("OLLAMA_MODEL", default="llama3.2:1b")
 OLLAMA_TIMEOUT = env("OLLAMA_TIMEOUT")
+OLLAMA_DEFAULT_MAX_TOKENS = env("OLLAMA_DEFAULT_MAX_TOKENS")
+OLLAMA_NUM_CTX = env("OLLAMA_NUM_CTX")
+OLLAMA_MAX_RETRIES = env("OLLAMA_MAX_RETRIES")
+OLLAMA_KEEP_ALIVE = env("OLLAMA_KEEP_ALIVE", default="30m")
+GUNICORN_TIMEOUT = env("GUNICORN_TIMEOUT")
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

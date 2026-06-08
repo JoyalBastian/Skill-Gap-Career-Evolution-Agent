@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 import logging
+import threading
 
 from django.db import IntegrityError, connection, transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, active_provider
 from ai_engine.question_generator import (
     MAX_QUESTIONS,
     get_first_question,
@@ -17,6 +18,9 @@ from ai_engine.question_generator import (
 from apps.questionnaire.models import AIAnswer, AIQuestion, QuestionnaireSession
 
 logger = logging.getLogger(__name__)
+
+_pipeline_lock = threading.Lock()
+_pipeline_running_users: set[int] = set()
 
 
 class QuestionnaireService:
@@ -78,6 +82,10 @@ class QuestionnaireService:
         ).update(status="abandoned")
 
         session = QuestionnaireSession.objects.create(user=user, status="in_progress")
+
+        if active_provider() == "ollama":
+            from ai_engine.ollama_client import warmup_model
+            warmup_model()
 
         resume_context = self._get_resume_context(user)
         first_q = get_first_question(resume_context=resume_context)  # may raise GeminiUnavailable
@@ -188,11 +196,21 @@ class QuestionnaireService:
                     return existing
                 raise
 
-    def complete_session(self, session_id: int) -> QuestionnaireSession:
+    def finalize_session(self, session_id: int) -> QuestionnaireSession:
+        """Mark session completed without running the heavy AI pipeline."""
         session = QuestionnaireSession.objects.get(id=session_id)
         session.status = "completed"
         session.completed_at = timezone.now()
-        session.save()
+        session.save(update_fields=["status", "completed_at"])
+        return session
+
+    def run_analysis_pipeline(self, session_id: int) -> QuestionnaireSession:
+        """Run post-interview AI analysis (multiple LLM calls — keep off request thread)."""
+        if active_provider() == "ollama":
+            from ai_engine.ollama_client import warmup_model
+            warmup_model()
+
+        session = QuestionnaireSession.objects.select_related("user").get(id=session_id)
 
         from services.career_prediction_service import CareerPredictionService
         from services.recommendation_service import RecommendationService
@@ -203,7 +221,7 @@ class QuestionnaireService:
         uus = UserUnderstandingService()
         try:
             uus.build_user_persona(session.user_id)
-        except GeminiUnavailable as e:
+        except LLMUnavailable as e:
             logger.warning("Persona build failed, using local fallback: %s", e)
             if session.ai_answers.count() >= 3:
                 uus.build_local_persona_fallback(session.user_id, session_id=session.id)
@@ -231,6 +249,60 @@ class QuestionnaireService:
             logger.warning("Roadmap generation failed for user=%s: %s", session.user_id, e)
 
         return session
+
+    def complete_session(self, session_id: int) -> QuestionnaireSession:
+        """Finalize session and run full analysis pipeline synchronously."""
+        self.finalize_session(session_id)
+        return self.run_analysis_pipeline(session_id)
+
+    @staticmethod
+    def get_pipeline_status(user) -> dict:
+        from apps.careers.models import CareerPrediction, SkillGapReport
+        from apps.recommendations.models import Recommendation
+        from apps.roadmap.models import Roadmap
+
+        return {
+            "predictions_ok": CareerPrediction.objects.filter(user=user).exists(),
+            "gap_ok": SkillGapReport.objects.filter(user=user).exists(),
+            "recs_ok": Recommendation.objects.filter(user=user).exists(),
+            "roadmap_ok": Roadmap.objects.filter(user=user).exists(),
+        }
+
+    @staticmethod
+    def pipeline_is_complete(status: dict) -> bool:
+        return all(status.values())
+
+    def is_pipeline_running(self, user_id: int) -> bool:
+        with _pipeline_lock:
+            return user_id in _pipeline_running_users
+
+    def start_analysis_pipeline_async(self, session_id: int) -> str:
+        """
+        Start background analysis if needed.
+        Returns: 'done', 'running', or 'started'.
+        """
+        session = QuestionnaireSession.objects.select_related("user").get(id=session_id)
+        user_id = session.user_id
+        status = self.get_pipeline_status(session.user)
+        if self.pipeline_is_complete(status):
+            return "done"
+
+        with _pipeline_lock:
+            if user_id in _pipeline_running_users:
+                return "running"
+            _pipeline_running_users.add(user_id)
+
+        def _run() -> None:
+            try:
+                self.run_analysis_pipeline(session_id)
+            except Exception:
+                logger.exception("Background analysis pipeline failed for session=%s", session_id)
+            finally:
+                with _pipeline_lock:
+                    _pipeline_running_users.discard(user_id)
+
+        threading.Thread(target=_run, daemon=True, name=f"pipeline-{session_id}").start()
+        return "started"
 
     def get_progress(self, session: QuestionnaireSession) -> dict:
         answered = session.ai_answers.count()

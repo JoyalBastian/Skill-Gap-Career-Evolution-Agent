@@ -4,16 +4,23 @@
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
     <div class="page-header" style="margin:0;">
-        <h1>AI Recommendations</h1>
+        <h1> Recommendations</h1>
         <p>Personalized learning resources based on your profile and skill gaps</p>
     </div>
-    <form method="post" data-ai-loader="true" data-ai-stages='["Reviewing your gaps…","Finding resources with Gemini…","Saving recommendations…"]'>
+    <form method="post" data-ai-overlay="false">
         {% csrf_token %}
-        <button class="btn btn-ghost"><i class="bi bi-arrow-repeat"></i> Refresh</button>
+        <button class="btn btn-ghost" type="submit"><i class="bi bi-arrow-repeat"></i> Refresh</button>
     </form>
 </div>
 
 {% include "partials/_ai_disclaimer.html" %}
+
+{% if generating %}
+<div class="alert alert-info" id="recsGeneratingBanner" style="margin-bottom:20px;">
+    <i class="bi bi-hourglass-split"></i>
+    AI is generating your recommendations in the background. This usually takes 1–3 minutes with local Ollama — the page will refresh automatically when ready.
+</div>
+{% endif %}
 
 {% if journey.has_recommendations and not journey.has_trending_match %}
 {% include "partials/_next_step.html" %}
@@ -70,12 +77,55 @@
 {% else %}
 <div class="card">
     <div class="card-body" style="text-align:center;padding:60px 32px;">
+        {% if generating %}
+        <div class="btn-spinner" style="width:40px;height:40px;margin:0 auto 16px;border-width:3px;"></div>
+        <h3 style="font-weight:600;margin-bottom:8px;">Generating recommendations…</h3>
+        <p style="color:var(--text-muted);margin-bottom:0;">Your interview answers are being analyzed. Please keep this tab open — results will appear shortly.</p>
+        {% elif has_interview %}
+        <i class="bi bi-hourglass-split" style="font-size:48px;color:var(--primary);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">Recommendations are on the way</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Click Refresh to start generation, or wait if you just finished the interview analysis.</p>
+        <form method="post" style="display:inline;">
+            {% csrf_token %}
+            <button class="btn btn-primary" type="submit"><i class="bi bi-arrow-repeat"></i> Generate Now</button>
+        </form>
+        {% else %}
         <i class="bi bi-lightbulb" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
         <h3 style="font-weight:600;margin-bottom:8px;">No recommendations yet</h3>
         <p style="color:var(--text-muted);margin-bottom:24px;">Complete the AI interview to get personalized learning recommendations.</p>
         <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start AI Interview</a>
+        {% endif %}
     </div>
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+{% if generating or not recommendations and has_interview %}
+<script>
+(function() {
+    const statusUrl = "{% url 'recommendations:status' %}";
+    let timer = null;
+
+    function poll() {
+        fetch(statusUrl, { credentials: "same-origin" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ready) {
+                    window.location.reload();
+                    return;
+                }
+                if (!data.generating && !data.ready) {
+                    if (timer) clearInterval(timer);
+                }
+            })
+            .catch(function() {});
+    }
+
+    timer = setInterval(poll, 4000);
+    poll();
+})();
+</script>
+{% endif %}
 {% endblock %}

@@ -38,4 +38,4 @@ RUN sed -i 's/\r$//' /app/docker/entrypoint.sh \
 EXPOSE 8000
 
 ENTRYPOINT ["/bin/sh", "/app/docker/entrypoint.sh"]
-CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "180", "--access-logfile", "-"]
+CMD ["gunicorn", "core.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3", "--timeout", "300", "--access-logfile", "-"]

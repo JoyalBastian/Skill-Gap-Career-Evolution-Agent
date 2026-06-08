@@ -26,9 +26,9 @@ PAGE_REQUIREMENTS: dict[str, NextStep] = {
     "careers:detail": "predictions",
     "skills:gap": "gaps",
     "skills:list": "predictions",
-    "roadmap:list": "roadmap",
-    "roadmap:detail": "roadmap",
-    "recommendations:list": "recs",
+    "roadmap:list": "recs",
+    "roadmap:detail": "recs",
+    "recommendations:list": "gaps",
     "jobs:trending": "jobs",
     "jobs:detail": "jobs",
     "progress:dashboard": "predictions",
@@ -41,8 +41,8 @@ STEP_ORDER: list[NextStep] = [
     "interview",
     "predictions",
     "gaps",
-    "roadmap",
     "recs",
+    "roadmap",
     "jobs",
     "done",
 ]
@@ -129,8 +129,8 @@ JOURNEY_CHECKLIST: list[tuple[str, str, str]] = [
     ("interview", "has_interview", "Complete AI interview"),
     ("predictions", "has_predictions", "Get career predictions"),
     ("gaps", "has_gap_report", "Review skill gaps"),
-    ("roadmap", "has_roadmap", "Build learning roadmap"),
     ("recs", "has_recommendations", "View recommendations"),
+    ("roadmap", "has_roadmap", "Build learning roadmap"),
     ("jobs", "has_trending_match", "Match trending jobs"),
 ]
 
@@ -138,8 +138,8 @@ JOURNEY_CHECKLIST: list[tuple[str, str, str]] = [
 SIDEBAR_PAGES = {
     "careers:predictions": "predictions",
     "skills:gap": "gaps",
-    "roadmap:list": "roadmap",
-    "recommendations:list": "recs",
+    "recommendations:list": "gaps",
+    "roadmap:list": "recs",
     "jobs:trending": "jobs",
     "progress:dashboard": "predictions",
     "analytics:dashboard": "predictions",
@@ -259,10 +259,10 @@ class JourneyService:
             next_step = "predictions"
         elif not has_gap_report:
             next_step = "gaps"
-        elif not has_roadmap:
-            next_step = "roadmap"
         elif not has_recommendations:
             next_step = "recs"
+        elif not has_roadmap:
+            next_step = "roadmap"
         elif not has_trending_match:
             next_step = "jobs"
         else:

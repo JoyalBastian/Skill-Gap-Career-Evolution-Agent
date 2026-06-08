@@ -20,6 +20,7 @@ services:
       - "11434:11434"
     volumes:
       - ollama_data:/root/.ollama
+    cpus: "4.0"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s
@@ -38,7 +39,7 @@ services:
       - .env
     environment:
       OLLAMA_HOST: http://ollama:11434
-      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.2:1b}
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |
@@ -65,6 +66,7 @@ services:
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
       # Inside Docker, Ollama is the service name — not localhost from .env
       OLLAMA_BASE_URL: http://ollama:11434
+      GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-300}
       DATABASE_PATH: db/db.sqlite3
       ALLOWED_HOSTS: localhost,127.0.0.1,web
       DEBUG: "False"

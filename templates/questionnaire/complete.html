@@ -2,52 +2,60 @@
 {% block title %}Analysis Complete — {{ SITE_NAME }}{% endblock %}
 {% block content %}
 
-<div style="max-width:640px;margin:40px auto;">
+<div style="max-width:640px;margin:40px auto;" id="completePage"
+     data-session-id="{{ session.id }}"
+     data-run-url="{% url 'questionnaire:pipeline_run' session.id %}"
+     data-status-url="{% url 'questionnaire:pipeline_status' session.id %}"
+     data-pipeline-complete="{{ pipeline_complete|yesno:'true,false' }}">
 
     <div style="width:80px;height:80px;background:linear-gradient(135deg,var(--primary),#7c3aed);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 24px;box-shadow:0 8px 32px rgba(79,70,229,.3);">
         <i class="bi bi-check-lg" style="font-size:36px;color:white;"></i>
     </div>
 
-    <h1 style="font-size:28px;font-weight:700;margin-bottom:12px;text-align:center;">AI Analysis Complete</h1>
-    <p style="color:var(--text-muted);font-size:16px;line-height:1.7;margin-bottom:28px;text-align:center;">
-        Your responses were analyzed by Gemini. Review what was generated below.
+    <h1 style="font-size:28px;font-weight:700;margin-bottom:12px;text-align:center;" id="completeHeading">
+        {% if pipeline_complete %}AI Analysis Complete{% else %}Interview Complete{% endif %}
+    </h1>
+    <p style="color:var(--text-muted);font-size:16px;line-height:1.7;margin-bottom:28px;text-align:center;" id="completeSubtitle">
+        {% if pipeline_complete %}
+        Your responses were analyzed. Review what was generated below.
+        {% else %}
+        Your answers are saved. AI is building your career insights — this may take a few minutes with local Ollama.
+        {% endif %}
     </p>
 
     <div class="card" style="margin-bottom:28px;">
         <div class="card-header"><i class="bi bi-list-check"></i> Pipeline Status</div>
         <div class="card-body">
-            <ul class="pipeline-checklist">
-                <li>
-                    <span class="status-icon {% if pipeline_status.predictions_ok %}ok{% else %}fail{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.predictions_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+            <ul class="pipeline-checklist" id="pipelineChecklist">
+                <li data-key="predictions_ok">
+                    <span class="status-icon {% if pipeline_status.predictions_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.predictions_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
                     </span>
                     Career predictions
                 </li>
-                <li>
-                    <span class="status-icon {% if pipeline_status.gap_ok %}ok{% else %}fail{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.gap_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                <li data-key="gap_ok">
+                    <span class="status-icon {% if pipeline_status.gap_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.gap_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
                     </span>
                     Skill gap report
                 </li>
-                <li>
-                    <span class="status-icon {% if pipeline_status.recs_ok %}ok{% else %}fail{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.recs_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                <li data-key="recs_ok">
+                    <span class="status-icon {% if pipeline_status.recs_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.recs_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
                     </span>
                     Recommendations
                 </li>
-                <li>
-                    <span class="status-icon {% if pipeline_status.roadmap_ok %}ok{% else %}fail{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.roadmap_ok %}check-circle-fill{% else %}x-circle{% endif %}"></i>
+                <li data-key="roadmap_ok">
+                    <span class="status-icon {% if pipeline_status.roadmap_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
+                        <i class="bi bi-{% if pipeline_status.roadmap_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
                     </span>
                     Learning roadmap
                 </li>
             </ul>
-            {% if not pipeline_status.predictions_ok %}
-            <div class="alert alert-warning" style="margin:0;">
+            <div class="alert alert-warning" id="pipelineWarning" style="margin:0;{% if pipeline_status.predictions_ok or not pipeline_complete %}display:none;{% endif %}">
                 <i class="bi bi-exclamation-triangle"></i>
                 Some results may be missing. Visit Career Matches and use Refresh, or retake the interview.
             </div>
-            {% endif %}
         </div>
     </div>
 
@@ -64,4 +72,111 @@
 
 </div>
 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const page = document.getElementById('completePage');
+    if (!page || page.dataset.pipelineComplete === 'true') return;
+
+    const runUrl = page.dataset.runUrl;
+    const statusUrl = page.dataset.statusUrl;
+    const stages = [
+        'Building your profile…',
+        'Generating career matches…',
+        'Analyzing skill gaps…',
+        'Creating recommendations…',
+        'Building your roadmap…',
+    ];
+    let pollTimer = null;
+    let stageTimer = null;
+    let stageIndex = 0;
+
+    function getCookie(name) {
+        const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
+        return match ? decodeURIComponent(match[2]) : '';
+    }
+
+    function showLoader() {
+        if (window.SkillGapUI) window.SkillGapUI.showLoader(stages);
+        stageIndex = 0;
+        if (stageTimer) clearInterval(stageTimer);
+        stageTimer = setInterval(function() {
+            stageIndex = (stageIndex + 1) % stages.length;
+        }, 3000);
+    }
+
+    function hideLoader() {
+        if (stageTimer) clearInterval(stageTimer);
+        const overlay = document.getElementById('aiLoadingOverlay');
+        if (overlay) {
+            overlay.classList.remove('active');
+            overlay.setAttribute('aria-hidden', 'true');
+        }
+    }
+
+    function updateRow(key, ok, finished) {
+        const row = document.querySelector('#pipelineChecklist li[data-key="' + key + '"]');
+        if (!row) return;
+        const iconWrap = row.querySelector('.status-icon');
+        const icon = row.querySelector('.status-icon i');
+        if (!iconWrap || !icon) return;
+        iconWrap.classList.remove('ok', 'fail', 'pending');
+        if (ok) {
+            iconWrap.classList.add('ok');
+            icon.className = 'bi bi-check-circle-fill';
+        } else if (finished) {
+            iconWrap.classList.add('fail');
+            icon.className = 'bi bi-x-circle';
+        } else {
+            iconWrap.classList.add('pending');
+            icon.className = 'bi bi-hourglass-split';
+        }
+    }
+
+    function applyStatus(status, complete) {
+        Object.keys(status).forEach(function(key) {
+            updateRow(key, status[key], complete);
+        });
+        if (complete) {
+            document.getElementById('completeHeading').textContent = 'AI Analysis Complete';
+            document.getElementById('completeSubtitle').textContent =
+                'Your responses were analyzed. Review what was generated below.';
+            const warning = document.getElementById('pipelineWarning');
+            if (warning && !status.predictions_ok) warning.style.display = 'flex';
+        }
+    }
+
+    function pollStatus() {
+        fetch(statusUrl, { credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                applyStatus(data.pipeline_status, data.complete);
+                if (data.complete) {
+                    hideLoader();
+                    if (pollTimer) clearInterval(pollTimer);
+                    page.dataset.pipelineComplete = 'true';
+                }
+            })
+            .catch(function() {});
+    }
+
+    showLoader();
+    fetch(runUrl, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'X-CSRFToken': getCookie('csrftoken') },
+    })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            applyStatus(data.pipeline_status, data.complete);
+            if (!data.complete) pollTimer = setInterval(pollStatus, 3000);
+            else hideLoader();
+        })
+        .catch(function() {
+            pollTimer = setInterval(pollStatus, 3000);
+        });
+})();
+</script>
 {% endblock %}

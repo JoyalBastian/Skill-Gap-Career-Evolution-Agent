@@ -3,7 +3,7 @@
 {% block content %}
 
 <div class="page-header">
-    <h1><i class="bi bi-mic"></i> AI Career Interview</h1>
+    <h1><i class="bi bi-mic"></i> Career Interview</h1>
     <p>Tell us about your goals first. When you are ready, we will generate personalized interview questions.</p>
 </div>
 
@@ -32,17 +32,16 @@
                   data-ai-stages='["Saving your details…","Preparing your interview…","Generating your first question…","Almost ready…"]'>
                 {% csrf_token %}
 
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
-                    <div class="form-group">
-                        <label class="form-label" for="full_name">Full name</label>
-                        <input type="text" name="full_name" id="full_name" class="form-control"
-                               value="{{ prep.full_name }}" placeholder="e.g. Alex Johnson">
-                    </div>
-                    <div class="form-group">
-                        <label class="form-label" for="current_title">Current role / title</label>
-                        <input type="text" name="current_title" id="current_title" class="form-control"
-                               value="{{ prep.current_title }}" placeholder="e.g. Software Engineer">
-                    </div>
+                <p style="font-size:14px;color:var(--text-muted);margin:0 0 16px;">
+                    <i class="bi bi-person-check"></i>
+                    Signed in as <strong style="color:var(--text);">{{ display_name }}</strong>
+                    {% if has_resume %} — we'll also use your resume details{% endif %}.
+                </p>
+
+                <div class="form-group">
+                    <label class="form-label" for="current_title">Current role / title</label>
+                    <input type="text" name="current_title" id="current_title" class="form-control"
+                           value="{{ prep.current_title }}" placeholder="e.g. Software Engineer">
                 </div>
 
                 <div class="form-group" style="margin-top:16px;">
@@ -91,7 +90,7 @@
             <div class="card-header"><i class="bi bi-info-circle"></i> How it works</div>
             <div class="card-body" style="padding:16px;font-size:14px;line-height:1.6;">
                 <p style="margin:0 0 12px;">1. Share your goals and context on this page.</p>
-                <p style="margin:0 0 12px;">2. AI generates ~12 tailored questions (first is open-ended, then multiple choice).</p>
+                <p style="margin:0 0 12px;">2. AI generates ~7 tailored questions (first is open-ended, then multiple choice).</p>
                 <p style="margin:0;">3. Your answers drive career predictions, skill gaps, and your roadmap.</p>
             </div>
         </div>

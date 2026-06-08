@@ -1,9 +1,10 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.views import View
 
-from ai_engine.llm_client import GeminiUnavailable, user_message_for
+from apps.questionnaire.models import QuestionnaireSession
 from apps.users.mixins import JourneyGatedViewMixin
 from services.recommendation_service import RecommendationService
 
@@ -15,10 +16,19 @@ class RecommendationListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     template_name = "recommendations/list.html"
 
     def get(self, request):
+        svc = RecommendationService()
         category = request.GET.get("category", "")
-        recs = RecommendationService().get_user_recommendations(
-            request.user.id, category or None
-        )
+        recs = svc.get_user_recommendations(request.user.id, category or None)
+        generating = svc.is_generating(request.user.id)
+        has_interview = QuestionnaireSession.objects.filter(
+            user=request.user,
+            status="completed",
+        ).exists()
+
+        if not recs.exists() and not generating and has_interview:
+            state = svc.start_generate_async(request.user.id)
+            generating = state in ("started", "running")
+
         categories = Recommendation.objects.filter(user=request.user).values_list(
             "category", flat=True
         ).distinct()
@@ -26,12 +36,36 @@ class RecommendationListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
             "recommendations": recs,
             "categories": categories,
             "active_category": category,
+            "generating": generating,
+            "has_interview": has_interview,
         })
 
     def post(self, request):
-        try:
-            RecommendationService().generate_recommendations(request.user.id)
-            messages.success(request, "Recommendations refreshed.")
-        except GeminiUnavailable as e:
-            messages.error(request, user_message_for(e))
+        svc = RecommendationService()
+        state = svc.start_generate_async(request.user.id)
+        if state == "done":
+            messages.info(request, "Recommendations are already up to date.")
+        elif state == "running":
+            messages.info(
+                request,
+                "Recommendations are already being generated. Please wait a moment.",
+            )
+        else:
+            messages.info(
+                request,
+                "Generating recommendations in the background. This page will refresh automatically.",
+            )
         return redirect("recommendations:list")
+
+
+class RecommendationStatusView(LoginRequiredMixin, View):
+    """Poll whether background recommendation generation has finished."""
+
+    def get(self, request):
+        svc = RecommendationService()
+        count = Recommendation.objects.filter(user=request.user).count()
+        return JsonResponse({
+            "count": count,
+            "generating": svc.is_generating(request.user.id),
+            "ready": count > 0,
+        })
