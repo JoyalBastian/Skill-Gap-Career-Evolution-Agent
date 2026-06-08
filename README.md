@@ -1,4 +1,4 @@
-# SkillGap AI — Backend
+# CareerPath AI — Backend
 
 Django app for career assessment: resume analysis, AI interview, career predictions, skill gaps, roadmap, and recommendations.
 
@@ -244,7 +244,7 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml --profile ollama 
 
 | URL | Service |
 |-----|---------|
-| http://localhost:8000/ | SkillGap web app |
+| http://localhost:8000/ | CareerPath AI web app |
 | http://localhost:11434/ | Ollama API (only with `--profile ollama`) |
 
 Stop everything:

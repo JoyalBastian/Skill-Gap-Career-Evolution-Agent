@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ SITE_NAME }} — Career Growth Platform{% endblock %}
+{% block title %}{{ SITE_NAME }}{% endblock %}
 {% block content_unauth %}
 <header class="landing-topbar">
     <a href="{% url 'landing' %}" class="landing-brand">
@@ -19,7 +19,7 @@
 <section class="landing-hero">
     <div class="landing-shell">
         <div class="landing-copy">
-            <span class="landing-badge"><i class="bi bi-stars"></i> Career Growth Platform</span>
+            <span class="landing-badge"><i class="bi bi-stars"></i> {{ SITE_NAME }}</span>
             <h1>Transform your career with intelligent guidance.</h1>
             <p>
                 Upload your resume, complete a short career interview, and instantly get career predictions,

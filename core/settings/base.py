@@ -1,5 +1,5 @@
 """
-Base Django settings for SkillGap AI.
+Base Django settings for CareerPath AI.
 
 This is a Gemini-only application: there is no sklearn, no SBERT, no spaCy,
 and no seeded knowledge catalog. The only external AI dependency is Google
@@ -128,6 +128,8 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "static" / "uploads"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+SITE_NAME = env("SITE_NAME", default="CareerPath AI")
 
 LOGIN_URL = "authentication:login"
 LOGIN_REDIRECT_URL = "users:dashboard"

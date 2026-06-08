@@ -40,7 +40,7 @@ class ChatbotService:
         ctx = self._profile_context(user_id)
         rc = ctx["rc"]
         lines = [
-            "You are a SkillGap career counselor. Be concise (under 180 words).",
+            "You are a CareerPath AI career counselor. Be concise (under 180 words).",
         ]
         if rc.get("current_title"):
             lines.append(f"Role: {rc['current_title']}")
