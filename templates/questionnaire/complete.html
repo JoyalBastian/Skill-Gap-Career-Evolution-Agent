@@ -13,13 +13,13 @@
     </div>
 
     <h1 style="font-size:28px;font-weight:700;margin-bottom:12px;text-align:center;" id="completeHeading">
-        {% if pipeline_complete %}AI Analysis Complete{% else %}Interview Complete{% endif %}
+        {% if pipeline_complete %}Analysis Complete{% else %}Interview Complete{% endif %}
     </h1>
     <p style="color:var(--text-muted);font-size:16px;line-height:1.7;margin-bottom:28px;text-align:center;" id="completeSubtitle">
         {% if pipeline_complete %}
         Your responses were analyzed. Review what was generated below.
         {% else %}
-        Your answers are saved. AI is building your career insights — this may take a few minutes with local Ollama.
+        Your answers are saved. We are building your career insights — this may take a few minutes.
         {% endif %}
     </p>
 
@@ -140,7 +140,7 @@
             updateRow(key, status[key], complete);
         });
         if (complete) {
-            document.getElementById('completeHeading').textContent = 'AI Analysis Complete';
+            document.getElementById('completeHeading').textContent = 'Analysis Complete';
             document.getElementById('completeSubtitle').textContent =
                 'Your responses were analyzed. Review what was generated below.';
             const warning = document.getElementById('pipelineWarning');

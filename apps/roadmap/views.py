@@ -42,7 +42,7 @@ class RoadmapListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
         if not roadmap:
             messages.warning(
                 request,
-                "No target career available yet. Complete the AI interview or upload a resume first.",
+                "No target career available yet. Complete the career interview or upload a resume first.",
             )
             return redirect("roadmap:list")
 

@@ -5,9 +5,9 @@
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
     <div class="page-header" style="margin:0;">
         <h1>Skill Gap Analysis</h1>
-        <p>{% if prediction %}For your top career match: <strong>{{ prediction.career.name }}</strong>{% else %}Complete the AI interview to see your skill gaps{% endif %}</p>
+        <p>{% if prediction %}For your top career match: <strong>{{ prediction.career.name }}</strong>{% else %}Complete the career interview to see your skill gaps{% endif %}</p>
     </div>
-    <form method="post" data-ai-loader="true" data-ai-stages='["Reviewing your skills…","Analyzing gaps with Gemini…","Updating report…"]'>
+    <form method="post" data-ai-loader="true" data-ai-stages='["Reviewing your skills…","Analyzing skill gaps…","Updating report…"]'>
         {% csrf_token %}
         <button class="btn btn-ghost"><i class="bi bi-arrow-repeat"></i> Re-analyze</button>
     </form>
@@ -45,7 +45,7 @@
         <div class="card-header" style="color:var(--danger);"><i class="bi bi-x-circle"></i> Skills to Develop</div>
         <div class="card-body">
             {% for skill in gap_report.prioritized_skills %}
-            <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+            <a href="{% url 'skills:gap_skill' skill.slug %}" class="gap-skill-row" title="View recommendations and roadmap for {{ skill.skill }}">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                     <span style="font-weight:600;font-size:14px;">{{ skill.skill }}</span>
                     <span class="badge badge-warning">Gap: {{ skill.gap_score|floatformat:0 }}</span>
@@ -58,7 +58,8 @@
                 <div class="progress-track" style="margin-top:8px;height:4px;">
                     <div class="progress-fill warning" style="width:{% widthratio skill.gap_score 5 100 %}%;"></div>
                 </div>
-            </div>
+                <span class="gap-skill-hint"><i class="bi bi-arrow-right-circle"></i> View learning plan</span>
+            </a>
             {% empty %}
             <div class="alert alert-success" style="margin:0;"><i class="bi bi-check-circle"></i> No critical skill gaps found!</div>
             {% endfor %}
@@ -97,9 +98,9 @@
     <div class="card-body" style="text-align:center;padding:60px 32px;">
         <i class="bi bi-puzzle" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
         <h3 style="font-weight:600;margin-bottom:8px;">No skill gap report yet</h3>
-        <p style="color:var(--text-muted);margin-bottom:24px;">Complete the AI interview or upload your resume to generate a skill gap analysis.</p>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Complete the career interview or upload your resume to generate a skill gap analysis.</p>
         <div style="display:flex;gap:12px;justify-content:center;">
-            <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start AI Interview</a>
+            <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start Career Interview</a>
             <a href="{% url 'users:resume_upload' %}" class="btn btn-ghost"><i class="bi bi-file-earmark-person"></i> Upload Resume</a>
         </div>
     </div>

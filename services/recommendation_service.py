@@ -9,11 +9,14 @@ from __future__ import annotations
 import logging
 import threading
 
+from django.db.models import Q
+
 from ai_engine.llm_client import GeminiUnavailable, active_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import SkillGapReport
 from apps.recommendations.models import LearningResource, Recommendation
 from apps.users.models import Profile
+from services.skill_utils import ensure_skill
 from services.user_understanding_service import UserUnderstandingService
 
 logger = logging.getLogger(__name__)
@@ -190,6 +193,11 @@ class RecommendationService:
             if updated:
                 resource.save(update_fields=["description", "url"])
 
+            for skill_name in item.get("skills") or []:
+                sk = ensure_skill(str(skill_name).strip())
+                if sk:
+                    resource.skills.add(sk)
+
             rec = Recommendation.objects.create(
                 user_id=user_id,
                 resource=resource,
@@ -219,3 +227,18 @@ class RecommendationService:
         if category:
             qs = qs.filter(category=category)
         return qs.order_by("-score")
+
+    def get_recommendations_for_skill(
+        self,
+        user_id: int,
+        skill_name: str,
+        skill_slug: str,
+    ):
+        """Recommendations linked to or mentioning a specific gap skill."""
+        qs = Recommendation.objects.filter(user_id=user_id).select_related("resource")
+        return qs.filter(
+            Q(resource__skills__slug=skill_slug)
+            | Q(resource__skills__name__iexact=skill_name)
+            | Q(reason__icontains=skill_name)
+            | Q(title__icontains=skill_name)
+        ).distinct().order_by("-score")

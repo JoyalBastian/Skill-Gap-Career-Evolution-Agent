@@ -9,12 +9,13 @@ profile to Gemini and ranks them for that specific user.
 from __future__ import annotations
 
 import logging
+import threading
 from datetime import timedelta
 
 from django.utils import timezone
 from django.utils.text import slugify
 
-from ai_engine.llm_client import GeminiUnavailable, chat_json
+from ai_engine.llm_client import GeminiUnavailable, active_provider, chat_json
 from apps.jobs.models import JobMatch, TrendingJob
 from services.user_understanding_service import UserUnderstandingService
 
@@ -23,6 +24,9 @@ logger = logging.getLogger(__name__)
 REFRESH_INTERVAL = timedelta(hours=24)
 TRENDING_CACHE_KEY = "trending_jobs::v1"
 VALID_DEMAND = {"low", "medium", "high", "very_high"}
+
+_task_lock = threading.Lock()
+_task_running_users: set[int] = set()
 
 
 def _ensure_slug(title: str, used: set[str]) -> str:
@@ -37,8 +41,47 @@ def _ensure_slug(title: str, used: set[str]) -> str:
 
 
 class TrendingJobsService:
-    def refresh_trending(self, force: bool = False, top_n: int = 12) -> list[TrendingJob]:
+    def default_trending_count(self) -> int:
+        return 8 if active_provider() == "ollama" else 12
+
+    def default_match_count(self) -> int:
+        return 5 if active_provider() == "ollama" else 6
+
+    def is_running(self, user_id: int) -> bool:
+        with _task_lock:
+            return user_id in _task_running_users
+
+    def start_async(self, user_id: int, *, refresh_trends: bool = False) -> str:
+        """Run trending refresh and/or user matching off the request thread."""
+        with _task_lock:
+            if user_id in _task_running_users:
+                return "running"
+            _task_running_users.add(user_id)
+
+        def _run() -> None:
+            try:
+                if refresh_trends:
+                    self.refresh_trending(force=True)
+                self.match_for_user(user_id)
+            except Exception:
+                logger.exception(
+                    "Background trending jobs task failed for user=%s",
+                    user_id,
+                )
+            finally:
+                with _task_lock:
+                    _task_running_users.discard(user_id)
+
+        threading.Thread(
+            target=_run,
+            daemon=True,
+            name=f"trending-jobs-{user_id}",
+        ).start()
+        return "started"
+
+    def refresh_trending(self, force: bool = False, top_n: int | None = None) -> list[TrendingJob]:
         """Refresh the TrendingJob table from Gemini if data is stale."""
+        top_n = top_n or self.default_trending_count()
         if not force:
             newest = TrendingJob.objects.order_by("-refreshed_at").first()
             if newest and (timezone.now() - newest.refreshed_at) < REFRESH_INTERVAL:
@@ -63,7 +106,12 @@ class TrendingJobsService:
             "}"
         )
 
-        data = chat_json(prompt, cache_key=TRENDING_CACHE_KEY, ttl=REFRESH_INTERVAL)
+        data = chat_json(
+            prompt,
+            cache_key=TRENDING_CACHE_KEY,
+            ttl=REFRESH_INTERVAL,
+            max_output_tokens=2048 if active_provider() == "ollama" else None,
+        )
         items = []
         if isinstance(data, dict):
             items = data.get("jobs") or []
@@ -98,8 +146,9 @@ class TrendingJobsService:
             created.append(job)
         return created
 
-    def match_for_user(self, user_id: int, top_n: int = 6) -> list[JobMatch]:
+    def match_for_user(self, user_id: int, top_n: int | None = None) -> list[JobMatch]:
         """Ask Gemini to rank the current trending jobs for this user."""
+        top_n = top_n or self.default_match_count()
         # Ensure we have a catalog
         jobs = list(TrendingJob.objects.all())
         if not jobs:
@@ -133,7 +182,10 @@ class TrendingJobsService:
             "}"
         )
 
-        data = chat_json(prompt)
+        data = chat_json(
+            prompt,
+            max_output_tokens=1536 if active_provider() == "ollama" else None,
+        )
         items = []
         if isinstance(data, dict):
             items = data.get("matches") or []

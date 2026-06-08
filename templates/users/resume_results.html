@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <h1>Resume Analysis Complete</h1>
-    <p>Here's what Gemini extracted from your resume</p>
+    <p>Here's what we extracted from your resume</p>
 </div>
 
 {% if analysis %}
@@ -23,7 +23,7 @@
     <div class="stat-card">
         <div class="stat-label">Skills Found</div>
         <div class="stat-value">{{ analysis.skills_detected|length }}</div>
-        <div class="stat-sub">Extracted by Gemini</div>
+        <div class="stat-sub">Extracted from resume</div>
     </div>
     <div class="stat-card">
         <div class="stat-label">Education</div>
@@ -63,7 +63,7 @@
         {% endif %}
 
         <div class="card">
-            <div class="card-header"><i class="bi bi-file-text"></i> AI Summary</div>
+            <div class="card-header"><i class="bi bi-file-text"></i> Profile Summary</div>
             <div class="card-body">
                 <p style="font-size:14px;color:var(--text-muted);margin:0;line-height:1.7;">{{ analysis.summary }}</p>
             </div>

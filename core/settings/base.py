@@ -23,6 +23,9 @@ env = environ.Env(
     OLLAMA_MAX_RETRIES=(int, 2),
     GEMINI_MAX_RETRIES=(int, 3),
     GUNICORN_TIMEOUT=(int, 300),
+    JOB_API_TIMEOUT=(int, 10),
+    JOB_VACANCY_CACHE_MINUTES=(int, 30),
+    JOB_DEFAULT_REMOTE=(bool, True),
 )
 
 # Load environment from backend/.env (same folder as manage.py)
@@ -162,5 +165,11 @@ OLLAMA_NUM_CTX = env("OLLAMA_NUM_CTX")
 OLLAMA_MAX_RETRIES = env("OLLAMA_MAX_RETRIES")
 OLLAMA_KEEP_ALIVE = env("OLLAMA_KEEP_ALIVE", default="30m")
 GUNICORN_TIMEOUT = env("GUNICORN_TIMEOUT")
+
+# Live job vacancy APIs (Remotive / Arbeitnow — no API key required)
+JOB_API_PROVIDER = env("JOB_API_PROVIDER", default="remotive")
+JOB_API_TIMEOUT = env("JOB_API_TIMEOUT")
+JOB_VACANCY_CACHE_MINUTES = env("JOB_VACANCY_CACHE_MINUTES")
+JOB_DEFAULT_REMOTE = env("JOB_DEFAULT_REMOTE")
 
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024

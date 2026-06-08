@@ -4,7 +4,7 @@ def site_settings(request):
 
     enabled = is_enabled()
     return {
-        "SITE_NAME": "SkillGap AI",
+        "SITE_NAME": "SkillGap",
         "CHATBOT_ENABLED": enabled,
         "GEMINI_ENABLED": enabled,
         "AI_PROVIDER": active_provider(),

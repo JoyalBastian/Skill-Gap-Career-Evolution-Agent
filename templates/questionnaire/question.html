@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}AI Interview — {{ SITE_NAME }}{% endblock %}
+{% block title %}Career Interview — {{ SITE_NAME }}{% endblock %}
 {% block content %}
 
 <div class="q-container">
@@ -16,7 +16,7 @@
 
     <div class="q-source-badge">
         {% if question.source == "gemini" %}
-        <span class="badge badge-gemini"><i class="bi bi-stars"></i> Gemini AI</span>
+        <span class="badge badge-gemini"><i class="bi bi-stars"></i> Personalized</span>
         {% else %}
         <span class="badge badge-muted"><i class="bi bi-lightbulb"></i> Smart Question</span>
         {% endif %}
@@ -32,7 +32,7 @@
               data-ai-loader="true"
               data-ai-overlay="false"
               {% if progress.answered|add:1 >= progress.total %}
-              data-ai-stages='["Saving your answers…","Analyzing with Gemini…","Generating career matches…","Building your roadmap…"]'
+              data-ai-stages='["Saving your answers…","Analyzing your profile…","Generating career matches…","Building your roadmap…"]'
               {% else %}
               data-ai-stages='["Saving your answer…","Generating your next question…","Almost ready…"]'
               {% endif %}>
@@ -81,7 +81,7 @@
             <div class="q-footer">
                 <div class="q-hint">
                     <i class="bi bi-robot"></i>
-                    Gemini is personalizing your next question
+                    Personalizing your next question
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg" id="nextBtn"
                         data-loading-text="{% if progress.answered|add:1 >= progress.total %}Analyzing…{% else %}Generating next question…{% endif %}">
@@ -168,7 +168,7 @@ function selectOtherMulti(el) {
         if (e.defaultPrevented) return;
         const isLast = {{ progress.answered|add:1 }} >= {{ progress.total }};
         if (isLast && window.SkillGapUI) {
-            let stages = ['Saving your answers…', 'Analyzing with Gemini…', 'Generating career matches…', 'Building your roadmap…'];
+            let stages = ['Saving your answers…', 'Analyzing your profile…', 'Generating career matches…', 'Building your roadmap…'];
             try {
                 const raw = form.getAttribute('data-ai-stages');
                 if (raw) stages = JSON.parse(raw);

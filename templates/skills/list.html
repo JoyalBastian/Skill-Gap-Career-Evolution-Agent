@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <h1>My Skills</h1>
-    <p>Skills detected from your resume and AI interview</p>
+    <p>Skills detected from your resume and career interview</p>
 </div>
 
 {% if user_skills %}
@@ -42,10 +42,10 @@
     <div class="card-body empty-state">
         <div class="empty-state-icon"><i class="bi bi-tags"></i></div>
         <h2>No skills detected yet</h2>
-        <p>Upload a resume or complete the AI interview to discover your skills.</p>
+        <p>Upload a resume or complete the career interview to discover your skills.</p>
         <div class="empty-state-actions">
             <a href="{% url 'users:resume_upload' %}" class="btn btn-primary">Upload Resume</a>
-            <a href="{% url 'questionnaire:start' %}" class="btn btn-ghost">AI Interview</a>
+            <a href="{% url 'questionnaire:start' %}" class="btn btn-ghost">Career Interview</a>
         </div>
     </div>
 </div>

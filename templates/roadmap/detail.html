@@ -50,7 +50,7 @@
         </div>
 
         <!-- Step card -->
-        <div class="card" style="flex:1;{% if step.id in completed_step_ids %}opacity:.75;{% endif %}">
+        <div class="card" style="flex:1;{% if step.id in completed_step_ids %}opacity:.75;{% endif %}" id="step-{{ step.id }}">
             <div class="card-body">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div style="flex:1;">

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}AI Career Chat — {{ SITE_NAME }}{% endblock %}
+{% block title %}Career Chat — {{ SITE_NAME }}{% endblock %}
 {% block content %}
 
 <div class="page-header">
@@ -10,15 +10,14 @@
 {% if not chatbot_enabled %}
 <div class="alert alert-warning">
     <i class="bi bi-exclamation-triangle"></i>
-    Chat requires <code>GEMINI_API_KEY</code> in <code>backend/.env</code>.
+    Chat is temporarily unavailable. Please try again later or contact support if this continues.
 </div>
 {% endif %}
 
 <div style="max-width:760px;">
     <div class="card chat-container">
         <div class="card-header">
-            <i class="bi bi-robot"></i> Gemini Career Advisor
-            <span class="badge badge-gemini" style="margin-left:auto;">Powered by Gemini</span>
+            <i class="bi bi-robot"></i> Career Advisor
         </div>
         <div id="chatBox" class="chat-messages">
             {% if not history %}

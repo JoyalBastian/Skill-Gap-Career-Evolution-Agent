@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <h1>Upload Your Resume</h1>
-    <p>Gemini extracts your skills and experience so the AI interview can focus on goals and interests.</p>
+    <p>We extract your skills and experience so the career interview can focus on goals and interests.</p>
 </div>
 
 <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;">
@@ -14,7 +14,7 @@
         <div class="card-body">
             <form method="post" enctype="multipart/form-data" id="resumeForm"
                   data-ai-loader="true"
-                  data-ai-stages='["Reading your PDF…","Extracting skills with Gemini…","Building career insights…","Almost done…"]'>
+                  data-ai-stages='["Reading your PDF…","Extracting skills…","Building career insights…","Almost done…"]'>
                 {% csrf_token %}
                 <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
                     <i class="bi bi-cloud-arrow-up" id="uploadIcon"></i>
@@ -26,7 +26,7 @@
                     <i class="bi bi-file-earmark-check"></i> <span id="fileName"></span>
                 </div>
                 <button type="submit" class="btn btn-primary btn-lg" style="width:100%;justify-content:center;margin-top:20px;" id="submitBtn">
-                    <i class="bi bi-cpu"></i> Analyze with AI
+                    <i class="bi bi-cpu"></i> Analyze Resume
                 </button>
             </form>
         </div>
@@ -34,7 +34,7 @@
 
     <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="card">
-            <div class="card-header"><i class="bi bi-stars"></i> What Gemini Extracts</div>
+            <div class="card-header"><i class="bi bi-stars"></i> What We Extract</div>
             <div class="card-body" style="padding:16px;">
                 {% for item in extracts %}
                 <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border);font-size:14px;">
@@ -47,7 +47,7 @@
             <i class="bi bi-lightning-charge"></i>
             <div>
                 <strong>Smarter Interview</strong><br>
-                <span style="font-size:13px;">After analysis, the AI interview skips topics already covered in your resume.</span>
+                <span style="font-size:13px;">After analysis, the career interview skips topics already covered in your resume.</span>
             </div>
         </div>
     </div>

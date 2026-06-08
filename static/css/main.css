@@ -774,6 +774,30 @@ select.form-control, select.form-select { width: 100%; padding: 10px 14px; borde
     border-color: var(--primary); background: var(--primary-light); color: var(--primary);
 }
 
+/* ── Clickable gap skill rows ── */
+.gap-skill-row {
+    display: block;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+    color: inherit;
+    text-decoration: none;
+    transition: background .15s, color .15s;
+    border-radius: 8px;
+}
+.gap-skill-row:last-child { border-bottom: none; }
+.gap-skill-row:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+.gap-skill-hint {
+    display: block;
+    margin-top: 8px;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+.gap-skill-row:hover .gap-skill-hint { color: var(--primary); }
+
 /* ── Pipeline checklist ── */
 .pipeline-checklist { list-style: none; padding: 0; margin: 0 0 24px; text-align: left; }
 .pipeline-checklist li {

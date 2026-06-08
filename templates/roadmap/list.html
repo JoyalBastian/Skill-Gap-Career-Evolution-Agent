@@ -5,9 +5,9 @@
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
     <div class="page-header" style="margin:0;">
         <h1>Learning Roadmap</h1>
-        <p>Your AI-generated personalized learning path</p>
+        <p>Your personalized learning path</p>
     </div>
-    <form method="post" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;" data-ai-loader="true" data-ai-stages='["Planning your path…","Generating steps with Gemini…","Saving roadmap…"]'>
+    <form method="post" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;" data-ai-loader="true" data-ai-stages='["Planning your path…","Generating roadmap steps…","Saving roadmap…"]'>
         {% csrf_token %}
         <select name="career_id" class="form-control" style="width:200px;">
             <option value="">Top predicted career</option>
@@ -18,7 +18,7 @@
             <option value="intermediate">Intermediate</option>
             <option value="advanced">Advanced</option>
         </select>
-        <button class="btn btn-primary"><i class="bi bi-stars"></i> Generate with AI</button>
+        <button class="btn btn-primary"><i class="bi bi-stars"></i> Generate Roadmap</button>
     </form>
 </div>
 
@@ -59,8 +59,8 @@
     <div class="card-body" style="text-align:center;padding:60px 32px;">
         <i class="bi bi-map" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
         <h3 style="font-weight:600;margin-bottom:8px;">No roadmap yet</h3>
-        <p style="color:var(--text-muted);margin-bottom:24px;">Complete the AI interview to auto-generate your roadmap, or click Generate above.</p>
-        <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start AI Interview</a>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Complete the career interview to auto-generate your roadmap, or click Generate above.</p>
+        <a href="{% url 'questionnaire:start' %}" class="btn btn-primary"><i class="bi bi-chat-square-dots"></i> Start Career Interview</a>
     </div>
 </div>
 {% endif %}

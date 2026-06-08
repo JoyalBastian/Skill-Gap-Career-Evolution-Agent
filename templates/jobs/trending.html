@@ -5,19 +5,27 @@
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
     <div class="page-header" style="margin:0;">
         <h1>Trending Jobs</h1>
-        <p>Roles in highest demand right now, ranked by AI for your profile.</p>
+        <p>Roles in highest demand right now, ranked for your profile.</p>
     </div>
-    <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;" data-ai-loader="true" data-ai-stages='["Fetching market trends…","Matching roles with Gemini…","Saving your matches…"]'>
+    <form method="post" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;" data-ai-overlay="false">
         {% csrf_token %}
         <input type="hidden" name="action" value="match">
-        <button class="btn btn-primary"><i class="bi bi-stars"></i> Refresh My Matches</button>
-        <button name="action" value="refresh" class="btn btn-ghost" title="Re-fetch global trending jobs from AI">
+        <button class="btn btn-primary" type="submit"><i class="bi bi-stars"></i> Refresh My Matches</button>
+        <button name="action" value="refresh" class="btn btn-ghost" type="submit" title="Re-fetch global trending jobs">
             <i class="bi bi-arrow-repeat"></i> Refresh Trends
         </button>
     </form>
 </div>
 
 {% include "partials/_ai_disclaimer.html" %}
+
+{% if generating %}
+<div class="alert alert-info" id="trendingGeneratingBanner" style="margin-bottom:20px;">
+    <i class="bi bi-hourglass-split"></i>
+    We are updating your job matches in the background. This may take 1–3 minutes — the page will refresh automatically when ready.
+</div>
+{% endif %}
+
 {% if last_refreshed %}
 <p style="font-size:13px;color:var(--text-muted);margin:-12px 0 20px;">Trends last refreshed: {{ last_refreshed|date:"M d, Y H:i" }}</p>
 {% endif %}
@@ -74,9 +82,34 @@
     <div class="card-body" style="text-align:center;padding:60px 32px;">
         <i class="bi bi-briefcase" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
         <h3 style="font-weight:600;margin-bottom:8px;">No trending jobs cached yet</h3>
-        <p style="color:var(--text-muted);margin-bottom:24px;">Click "Refresh Trends" above to fetch the latest in-demand roles via AI.</p>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Click "Refresh Trends" above to fetch the latest in-demand roles.</p>
     </div>
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block extra_js %}
+{% if generating %}
+<script>
+(function() {
+    const statusUrl = "{% url 'jobs:trending_status' %}";
+    let timer = null;
+
+    function poll() {
+        fetch(statusUrl, { credentials: "same-origin" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.generating) {
+                    window.location.reload();
+                }
+            })
+            .catch(function() {});
+    }
+
+    timer = setInterval(poll, 4000);
+    poll();
+})();
+</script>
+{% endif %}
 {% endblock %}

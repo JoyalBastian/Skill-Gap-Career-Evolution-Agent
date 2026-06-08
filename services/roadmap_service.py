@@ -198,3 +198,16 @@ class RoadmapService:
         return Roadmap.objects.filter(user_id=user_id, is_active=True).prefetch_related(
             "steps__skills"
         ).first()
+
+    def get_steps_for_skill(self, user_id: int, skill_slug: str):
+        """Roadmap steps from the active roadmap that target this skill."""
+        roadmap = self.get_active_roadmap(user_id)
+        if not roadmap:
+            return [], None
+        steps = list(
+            roadmap.steps.filter(skills__slug=skill_slug)
+            .prefetch_related("skills")
+            .order_by("order")
+            .distinct()
+        )
+        return steps, roadmap

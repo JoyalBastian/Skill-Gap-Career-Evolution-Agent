@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ SITE_NAME }} — AI Career Growth Platform{% endblock %}
+{% block title %}{{ SITE_NAME }} — Career Growth Platform{% endblock %}
 {% block content_unauth %}
 <header class="landing-topbar">
     <a href="{% url 'landing' %}" class="landing-brand">
@@ -19,10 +19,10 @@
 <section class="landing-hero">
     <div class="landing-shell">
         <div class="landing-copy">
-            <span class="landing-badge"><i class="bi bi-stars"></i> AI Career Copilot</span>
+            <span class="landing-badge"><i class="bi bi-stars"></i> Career Growth Platform</span>
             <h1>Transform your career with intelligent guidance.</h1>
             <p>
-                Upload your resume, complete a short AI interview, and instantly get career predictions,
+                Upload your resume, complete a short career interview, and instantly get career predictions,
                 skill-gap insights, a personalized learning roadmap, and market-fit job recommendations.
             </p>
             <div class="landing-actions">
@@ -52,7 +52,7 @@
                 </div>
                 <div class="landing-metric">
                     <strong>24/7</strong>
-                    <span>AI Career Support</span>
+                    <span>Career Support</span>
                 </div>
             </div>
             <a href="{% url 'authentication:register' %}" class="btn btn-primary landing-panel-cta">Build My Plan</a>
@@ -74,7 +74,7 @@
             </article>
             <article class="landing-feature-card">
                 <i class="bi bi-chat-dots"></i>
-                <h3>Adaptive AI Interview</h3>
+                <h3>Adaptive Career Interview</h3>
                 <p>Capture intent, strengths, and goals through dynamic guided questions.</p>
             </article>
             <article class="landing-feature-card">
@@ -115,7 +115,7 @@
             </article>
             <article class="landing-step">
                 <em>STEP 02</em>
-                <h3>AI Interview</h3>
+                <h3>Career Interview</h3>
                 <p>Answer guided questions to personalize goals and career intent.</p>
             </article>
             <article class="landing-step">
@@ -136,7 +136,7 @@
     <div class="landing-container">
         <div class="landing-final-card">
             <h2>Ready to unlock your next career milestone?</h2>
-            <p>{{ SITE_NAME }} combines AI intelligence with structured execution so you can make focused progress.</p>
+            <p>{{ SITE_NAME }} combines personalized insights with structured execution so you can make focused progress.</p>
             <div class="landing-actions">
                 <a href="{% url 'authentication:register' %}" class="btn btn-primary btn-lg">Create Account</a>
                 <a href="{% url 'authentication:login' %}" class="btn btn-outline btn-lg">Login</a>

@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <h1>Welcome back, {{ user.first_name|default:user.username }}</h1>
-    <p>Your AI-powered career evolution hub</p>
+    <p>Your personalized career evolution hub</p>
 </div>
 
 {% include "partials/_journey_stepper.html" %}
@@ -17,7 +17,7 @@
         <div class="stat-sub">Based on skill gap analysis</div>
     </div>
     <div class="stat-card">
-        <div class="stat-label">AI Interviews</div>
+        <div class="stat-label">Career Interviews</div>
         <div class="stat-value">{{ journey.sessions_count }}</div>
         <div class="stat-sub">Completed sessions</div>
     </div>
@@ -35,7 +35,7 @@
             <span style="color:var(--text-muted)"><i class="bi bi-dash-circle"></i></span>
             {% endif %}
         </div>
-        <div class="stat-sub">{% if journey.has_resume %}Analyzed by Gemini{% else %}Not uploaded{% endif %}</div>
+        <div class="stat-sub">{% if journey.has_resume %}Resume analyzed{% else %}Not uploaded{% endif %}</div>
     </div>
 </div>
 
@@ -70,7 +70,7 @@
 {% else %}
 <div class="alert alert-info">
     <i class="bi bi-info-circle"></i>
-    Upload your resume or start the AI interview to unlock personalized career guidance.
+    Upload your resume or start the career interview to unlock personalized career guidance.
 </div>
 {% endif %}
 

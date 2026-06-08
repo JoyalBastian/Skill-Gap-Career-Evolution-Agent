@@ -25,6 +25,7 @@ PAGE_REQUIREMENTS: dict[str, NextStep] = {
     "careers:list": "predictions",
     "careers:detail": "predictions",
     "skills:gap": "gaps",
+    "skills:gap_skill": "gaps",
     "skills:list": "predictions",
     "roadmap:list": "recs",
     "roadmap:detail": "recs",
@@ -50,21 +51,21 @@ STEP_ORDER: list[NextStep] = [
 STEP_META: dict[NextStep, dict[str, str]] = {
     "resume": {
         "title": "Upload your resume",
-        "description": "Let Gemini extract your skills and experience so we can personalize everything.",
+        "description": "We extract your skills and experience from your resume so we can personalize everything.",
         "cta": "Upload Resume",
         "icon": "file-earmark-arrow-up",
         "url_name": "users:resume_upload",
     },
     "interview": {
-        "title": "Complete the AI interview",
+        "title": "Complete the career interview",
         "description": "Answer a few questions about your goals, interests, and personality.",
-        "cta": "Start AI Interview",
+        "cta": "Start Career Interview",
         "icon": "chat-square-dots",
         "url_name": "questionnaire:start",
     },
     "predictions": {
         "title": "View your career matches",
-        "description": "See which careers Gemini recommends based on your profile.",
+        "description": "See which careers we recommend based on your profile.",
         "cta": "View Career Matches",
         "icon": "briefcase",
         "url_name": "careers:predictions",
@@ -112,6 +113,7 @@ PAGE_DISPLAY: dict[str, dict[str, str]] = {
     "careers:list": {"title": "Your Careers", "icon": "briefcase"},
     "careers:detail": {"title": "Career Details", "icon": "briefcase"},
     "skills:gap": {"title": "Skill Gaps", "icon": "puzzle"},
+    "skills:gap_skill": {"title": "Skill Learning Plan", "icon": "puzzle"},
     "skills:list": {"title": "My Skills", "icon": "tags"},
     "roadmap:list": {"title": "Learning Roadmap", "icon": "map"},
     "roadmap:detail": {"title": "Roadmap Details", "icon": "map"},
@@ -120,13 +122,13 @@ PAGE_DISPLAY: dict[str, dict[str, str]] = {
     "jobs:detail": {"title": "Job Details", "icon": "fire"},
     "progress:dashboard": {"title": "My Progress", "icon": "bar-chart-line"},
     "analytics:dashboard": {"title": "Analytics", "icon": "graph-up"},
-    "analytics:chat": {"title": "AI Chat", "icon": "robot"},
+    "analytics:chat": {"title": "Career Chat", "icon": "robot"},
 }
 
 # Checklist rows shown on locked pages (step key, journey attr, label)
 JOURNEY_CHECKLIST: list[tuple[str, str, str]] = [
     ("resume", "has_resume", "Upload resume"),
-    ("interview", "has_interview", "Complete AI interview"),
+    ("interview", "has_interview", "Complete career interview"),
     ("predictions", "has_predictions", "Get career predictions"),
     ("gaps", "has_gap_report", "Review skill gaps"),
     ("recs", "has_recommendations", "View recommendations"),

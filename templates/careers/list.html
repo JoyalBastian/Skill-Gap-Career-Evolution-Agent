@@ -4,7 +4,7 @@
 
 <div class="page-header">
     <h1>Your Matched Careers</h1>
-    <p>Career domains from your Gemini predictions</p>
+    <p>Career domains from your profile matches</p>
 </div>
 
 {% if careers %}
@@ -22,7 +22,7 @@
     <div class="card-body empty-state">
         <div class="empty-state-icon"><i class="bi bi-briefcase"></i></div>
         <h2>No matched careers yet</h2>
-        <p>Complete your assessment to see careers Gemini recommends for you.</p>
+        <p>Complete your assessment to see careers we recommend for you.</p>
         <div class="empty-state-actions">
             <a href="{% url 'careers:predictions' %}" class="btn btn-primary">View Predictions</a>
         </div>

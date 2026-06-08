@@ -8,7 +8,7 @@ from apps.users.services.journey_service import (
 
 REQUIREMENTS_LABEL = {
     "resume": "uploading your resume",
-    "interview": "the AI interview",
+    "interview": "the career interview",
     "predictions": "career predictions",
     "gaps": "skill gap analysis",
     "roadmap": "a learning roadmap",

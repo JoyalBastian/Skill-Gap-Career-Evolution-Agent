@@ -18,7 +18,7 @@
 
 {% if prediction %}
 <div class="card" style="margin-bottom:24px;">
-    <div class="card-header"><i class="bi bi-stars"></i> Why Gemini Matched You</div>
+    <div class="card-header"><i class="bi bi-stars"></i> Why We Matched You</div>
     <div class="card-body">
         <p style="margin:0;font-size:14px;line-height:1.7;color:var(--text-muted);">{{ prediction.explanation_text }}</p>
         <div class="progress-track" style="margin-top:16px;">
@@ -39,9 +39,9 @@
     <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
         <div style="flex:1;">
             <div style="font-weight:600;margin-bottom:4px;">Run skill gap analysis</div>
-            <div style="font-size:13px;color:var(--text-muted);">Gemini compares your skills to this career path.</div>
+            <div style="font-size:13px;color:var(--text-muted);">We compare your skills to this career path.</div>
         </div>
-        <form method="post" data-ai-loader="true" data-ai-stages='["Comparing your skills…","Identifying gaps with Gemini…","Saving report…"]'>
+        <form method="post" data-ai-loader="true" data-ai-stages='["Comparing your skills…","Identifying skill gaps…","Saving report…"]'>
             {% csrf_token %}
             <button class="btn btn-primary"><i class="bi bi-puzzle"></i> Analyze Skill Gaps</button>
         </form>

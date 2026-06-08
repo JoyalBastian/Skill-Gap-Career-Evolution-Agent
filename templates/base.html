@@ -40,7 +40,7 @@
             <i class="bi bi-file-earmark-person"></i> Upload Resume
         </a>
         <a href="{% url 'questionnaire:start' %}" class="sidebar-link {% if 'questionnaire' in request.path %}active{% endif %}">
-            <i class="bi bi-chat-square-dots"></i> AI Interview
+            <i class="bi bi-chat-square-dots"></i> Career Interview
         </a>
         <a href="{% url 'skills:list' %}" class="sidebar-link {% if request.resolver_match.url_name == 'list' and 'skills' in request.path %}active{% endif %}{% if journey and 'skills:list' in journey.locked_pages %} locked{% endif %}">
             <i class="bi bi-tags"></i> My Skills
@@ -64,7 +64,10 @@
             <i class="bi bi-lightbulb"></i> Recommendations
             {% if journey and 'recommendations:list' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
         </a>
-        <a href="{% url 'jobs:trending' %}" class="sidebar-link {% if 'jobs' in request.path %}active{% endif %}{% if journey and 'jobs:trending' in journey.locked_pages %} locked{% endif %}">
+        <a href="{% url 'jobs:openings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'openings' %}active{% endif %}">
+            <i class="bi bi-briefcase"></i> Job Openings
+        </a>
+        <a href="{% url 'jobs:trending' %}" class="sidebar-link {% if request.resolver_match.url_name == 'trending' or request.resolver_match.url_name == 'detail' %}active{% endif %}{% if journey and 'jobs:trending' in journey.locked_pages %} locked{% endif %}">
             <i class="bi bi-fire"></i> Trending Jobs
             {% if journey and 'jobs:trending' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
         </a>
@@ -80,7 +83,7 @@
         </a>
         {% if CHATBOT_ENABLED %}
         <a href="{% url 'analytics:chat' %}" class="sidebar-link {% if 'chat' in request.path %}active{% endif %}{% if journey and 'analytics:chat' in journey.locked_pages %} locked{% endif %}">
-            <i class="bi bi-robot"></i> AI Chat
+            <i class="bi bi-robot"></i> Career Chat
             {% if journey and 'analytics:chat' in journey.locked_pages %}<i class="bi bi-lock lock-icon"></i>{% endif %}
         </a>
         {% endif %}
@@ -144,7 +147,7 @@
     let timer = null;
 
     function showLoader(stages) {
-        const steps = stages.length ? stages : ['Working with AI…'];
+        const steps = stages.length ? stages : ['Processing…'];
         let i = 0;
         overlay.classList.add('active');
         overlay.setAttribute('aria-hidden', 'false');
@@ -179,7 +182,7 @@
                 e.preventDefault();
                 return;
             }
-            let stages = ['Working with AI…'];
+            let stages = ['Processing…'];
             try {
                 const raw = form.getAttribute('data-ai-stages');
                 if (raw) stages = JSON.parse(raw);

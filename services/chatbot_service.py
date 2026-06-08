@@ -40,7 +40,7 @@ class ChatbotService:
         ctx = self._profile_context(user_id)
         rc = ctx["rc"]
         lines = [
-            "You are SkillGap AI career counselor. Be concise (under 180 words).",
+            "You are a SkillGap career counselor. Be concise (under 180 words).",
         ]
         if rc.get("current_title"):
             lines.append(f"Role: {rc['current_title']}")
@@ -75,7 +75,7 @@ class ChatbotService:
         ctx = self._profile_context(user_id)
         rc = ctx["rc"]
         parts = [
-            "I cannot reach Gemini right now because your API quota is exhausted.",
+            "Career chat is temporarily unavailable because the daily usage limit has been reached.",
             user_message_for(exc),
             "",
             "Based on your saved profile:",
@@ -90,8 +90,7 @@ class ChatbotService:
         if ctx["missing"]:
             parts.append(f"- Focus on learning: {', '.join(ctx['missing'][:3])}")
         parts.append(
-            "\nTry again after the quota resets, change GEMINI_MODEL in backend/.env, "
-            "or enable billing at https://aistudio.google.com/"
+            "\nTry again later once the usage limit resets."
         )
         return "\n".join(parts)
 

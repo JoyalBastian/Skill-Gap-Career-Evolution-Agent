@@ -51,61 +51,49 @@ class LLMUnavailable(RuntimeError):
     @property
     def user_message(self) -> str:
         if self.provider == "ollama":
-            base = (
-                getattr(settings, "OLLAMA_BASE_URL", "http://localhost:11434") or ""
-            ).rstrip("/")
-            model = getattr(settings, "OLLAMA_MODEL", "llama3.2:1b")
             msg = str(self).lower()
             if "timed out" in msg or "timeout" in msg:
                 return (
-                    f"Ollama took too long to respond (model: {model}). "
-                    "The model may still be loading — wait a minute and try again."
+                    "Analysis took too long to complete. "
+                    "The service may still be starting — wait a minute and try again."
                 )
             if "not installed" in msg or "not found" in msg:
                 return (
-                    f"Ollama model '{model}' is not installed. "
-                    f"Run: ollama pull {model}"
+                    "Analysis is not ready yet. "
+                    "Please wait a moment and try again."
                 )
             if "truncated" in msg or "not valid json" in msg:
                 return (
-                    "Ollama returned incomplete JSON. "
-                    "Try again, or set OLLAMA_DEFAULT_MAX_TOKENS=2048 in .env."
+                    "We received an incomplete response. "
+                    "Please try again in a moment."
                 )
             if "empty response" in msg:
                 return (
-                    f"Ollama returned no text (model: {model}). "
-                    "The model may still be loading — wait and try again."
+                    "We did not receive a complete response. "
+                    "Please wait and try again."
                 )
             if self.is_transient or "busy" in msg or "still loading" in msg:
                 return (
-                    f"Ollama is busy or still loading model '{model}'. "
+                    "The analysis service is busy or still starting. "
                     "Wait a few seconds and try again."
                 )
             if "connect" in msg or "cannot connect" in msg:
-                if "ollama:" in base or base.endswith("//ollama"):
-                    return (
-                        f"Cannot reach Ollama at {base}. "
-                        "Start the stack with: docker compose --profile ollama up --build. "
-                        f"Ensure the model is pulled: ollama pull {model}"
-                    )
                 return (
-                    f"Cannot reach Ollama at {base}. "
-                    "Install Ollama from https://ollama.com, keep it running, then in a terminal: "
-                    f"ollama pull {model}"
+                    "We could not reach the analysis service. "
+                    "Please try again in a moment or contact support if this continues."
                 )
             return (
-                "Local AI (Ollama) failed to respond. Check that Ollama is running and "
-                f"the model '{model}' is installed (ollama pull {model})."
+                "Analysis is temporarily unavailable. "
+                "Please try again in a moment."
             )
         if self.is_transient or self.code in (502, 503, 504):
             return (
-                "Gemini is temporarily busy due to high demand. "
+                "The service is temporarily busy due to high demand. "
                 "Please wait a few seconds and try again — your progress is saved."
             )
         if self.is_quota or self.code == 429:
             parts = [
-                "Gemini API quota limit reached for this project "
-                "(free tier allows a small number of requests per day per model)."
+                "Daily usage limit reached for career analysis.",
             ]
             if self.retry_after_seconds is not None and self.retry_after_seconds > 0:
                 secs = int(self.retry_after_seconds) + 1
@@ -113,19 +101,13 @@ class LLMUnavailable(RuntimeError):
                     parts.append(f"Try again in about {secs} seconds.")
                 else:
                     parts.append(
-                        "The daily limit may be exhausted — try again tomorrow, "
-                        "switch AI_PROVIDER=ollama or GEMINI_MODEL in .env, or enable billing."
+                        "The daily limit may be exhausted — please try again tomorrow."
                     )
             else:
-                parts.append(
-                    "Try again later, use AI_PROVIDER=ollama, change GEMINI_MODEL, "
-                    "or enable billing on Google AI Studio."
-                )
-            parts.append(f"Details: {_GEMINI_QUOTA_DOC_URL}")
+                parts.append("Please try again later.")
             return " ".join(parts)
         return (
-            "AI is temporarily unavailable. Please try again in a moment. "
-            f"If this persists, check your provider settings and {_GEMINI_QUOTA_DOC_URL}"
+            "Analysis is temporarily unavailable. Please try again in a moment."
         )
 
 
@@ -138,7 +120,7 @@ def user_message_for(exc: BaseException) -> str:
         return exc.user_message
     if isinstance(exc, GeminiUnavailable):
         return exc.user_message
-    return str(exc) or "AI is temporarily unavailable."
+    return str(exc) or "Analysis is temporarily unavailable."
 
 
 def hash_prompt(prompt: str, provider: str, model: str, gen: GenConfig) -> str:

@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Job Openings — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div class="page-header" style="margin-bottom:24px;">
+    <h1>Job Openings</h1>
+    <p>Live vacancies from real job boards — company, location, salary, and direct apply links.</p>
+</div>
+
+<div class="card" style="margin-bottom:24px;">
+    <div class="card-body">
+        <form method="get" class="vacancy-search-form" style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;">
+            <div style="flex:1;min-width:180px;">
+                <label for="q" class="form-label">Keyword</label>
+                <input type="search" id="q" name="q" value="{{ q }}" class="form-control"
+                       placeholder="e.g. Python, Data Analyst">
+            </div>
+            <div style="flex:1;min-width:160px;">
+                <label for="location" class="form-label">Location</label>
+                <input type="text" id="location" name="location" value="{{ location }}" class="form-control"
+                       placeholder="e.g. India, Berlin, Worldwide">
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;padding-bottom:4px;">
+                <input type="checkbox" id="remote" name="remote" value="1" class="form-check-input"
+                       {% if remote_only %}checked{% endif %}>
+                <label for="remote" class="form-label" style="margin:0;">Remote only</label>
+            </div>
+            <button type="submit" class="btn btn-primary">
+                <i class="bi bi-search"></i> Search
+            </button>
+        </form>
+        {% if search_keyword and not q %}
+        <p style="font-size:13px;color:var(--text-muted);margin:12px 0 0;">
+            Showing results for your top career match: <strong>{{ search_keyword }}</strong>
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+{% if api_error %}
+<div class="alert alert-warning" style="margin-bottom:20px;">
+    <i class="bi bi-exclamation-triangle"></i> {{ api_error }}
+</div>
+{% endif %}
+
+{% if vacancies %}
+<p style="font-size:13px;color:var(--text-muted);margin:-8px 0 16px;">
+    {{ vacancies|length }} opening{{ vacancies|length|pluralize }} found
+</p>
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;">
+    {% for v in vacancies %}
+    <div class="card vacancy-card" style="display:flex;flex-direction:column;">
+        <div class="card-body" style="flex:1;">
+            <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px;">
+                {% if v.company_logo %}
+                <img src="{{ v.company_logo }}" alt="" width="40" height="40"
+                     style="border-radius:8px;object-fit:contain;background:#fff;border:1px solid var(--border);"
+                     loading="lazy">
+                {% else %}
+                <div style="width:40px;height:40px;border-radius:8px;background:var(--primary-light);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                    <i class="bi bi-building" style="color:var(--primary);"></i>
+                </div>
+                {% endif %}
+                <div style="min-width:0;flex:1;">
+                    <div style="font-weight:600;font-size:16px;line-height:1.35;margin-bottom:4px;">{{ v.title }}</div>
+                    <div style="font-size:14px;color:var(--text-muted);">{{ v.company }}</div>
+                </div>
+            </div>
+
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+                {% if v.is_remote %}
+                <span class="badge badge-success"><i class="bi bi-globe2"></i> Remote</span>
+                {% endif %}
+                {% if v.location %}
+                <span class="badge badge-muted"><i class="bi bi-geo-alt"></i> {{ v.location|truncatechars:40 }}</span>
+                {% endif %}
+                {% if v.job_type %}
+                <span class="badge badge-muted">{{ v.job_type|title }}</span>
+                {% endif %}
+                {% if v.posted_date %}
+                <span class="badge badge-muted"><i class="bi bi-calendar3"></i> {{ v.posted_date|date:"M d, Y" }}</span>
+                {% endif %}
+            </div>
+
+            {% if v.salary %}
+            <p style="font-size:13px;margin:0 0 10px;color:var(--text);">
+                <i class="bi bi-cash-stack" style="color:var(--success);"></i> {{ v.salary }}
+            </p>
+            {% endif %}
+
+            {% if v.tags %}
+            <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:12px;">
+                {% for tag in v.tags|slice:":6" %}
+                <span class="badge badge-muted" style="font-size:11px;">{{ tag }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <span style="font-size:11px;color:var(--text-muted);text-transform:capitalize;">via {{ v.source }}</span>
+        </div>
+        <div style="padding:12px 20px;border-top:1px solid var(--border);">
+            <a href="{{ v.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="width:100%;justify-content:center;">
+                <i class="bi bi-box-arrow-up-right"></i> Apply on {{ v.source|title }}
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% elif not api_error %}
+<div class="card">
+    <div class="card-body" style="text-align:center;padding:60px 32px;">
+        <i class="bi bi-search" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">No openings found</h3>
+        <p style="color:var(--text-muted);margin-bottom:0;">
+            Try a different keyword or location, or turn off "Remote only" to see more results.
+        </p>
+    </div>
+</div>
+{% endif %}
+
+<div style="margin-top:28px;padding:16px;background:var(--surface-2, #f8fafc);border-radius:12px;font-size:13px;color:var(--text-muted);">
+    <i class="bi bi-info-circle"></i>
+    Listings are fetched live from Remotive and Arbeitnow. Apply links open the original job posting on the provider's site.
+    <a href="{% url 'jobs:trending' %}" style="margin-left:8px;">View trending roles →</a>
+</div>
+
+{% endblock %}
