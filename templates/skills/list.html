@@ -12,7 +12,13 @@
     <div class="card-header"><i class="bi bi-tags"></i> Skill Tags</div>
     <div class="card-body tag-cloud">
         {% for us in user_skills %}
-        <span class="skill-tag present">{{ us.skill.name }}</span>
+        <span class="skill-tag present">
+            {% if us.skill.slug in gap_slugs %}
+            <a href="{% url 'roadmap:for_skill' us.skill.slug %}" style="color:inherit;text-decoration:none;">{{ us.skill.name }}</a>
+            {% else %}
+            {{ us.skill.name }}
+            {% endif %}
+        </span>
         {% endfor %}
     </div>
 </div>
@@ -27,7 +33,15 @@
             <tbody>
                 {% for us in user_skills %}
                 <tr>
-                    <td><strong>{{ us.skill.name }}</strong></td>
+                    <td>
+                        <strong>
+                            {% if us.skill.slug in gap_slugs %}
+                            <a href="{% url 'roadmap:for_skill' us.skill.slug %}" style="color:inherit;text-decoration:none;">{{ us.skill.name }}</a>
+                            {% else %}
+                            {{ us.skill.name }}
+                            {% endif %}
+                        </strong>
+                    </td>
                     <td>{{ us.skill.category|default:"—" }}</td>
                     <td>{{ us.proficiency }}/5</td>
                     <td><span class="badge badge-muted">{{ us.get_source_display }}</span></td>

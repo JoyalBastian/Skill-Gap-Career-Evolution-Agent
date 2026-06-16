@@ -81,6 +81,8 @@
         </h2>
         {% if active_roadmap %}
         <a href="{% url 'roadmap:detail' active_roadmap.id %}" class="btn btn-ghost btn-sm">Full roadmap →</a>
+        {% elif gap_report %}
+        <a href="{% url 'roadmap:for_career' gap_report.career.slug %}" class="btn btn-ghost btn-sm">Open roadmap →</a>
         {% else %}
         <a href="{% url 'roadmap:list' %}" class="btn btn-ghost btn-sm">Open roadmap →</a>
         {% endif %}
@@ -101,7 +103,9 @@
                         <span style="font-size:13px;color:var(--text-muted);"><i class="bi bi-clock"></i> ~{{ step.estimated_weeks }} weeks</span>
                     </div>
                     {% if active_roadmap %}
-                    <a href="{% url 'roadmap:detail' active_roadmap.id %}#step-{{ step.id }}" class="btn btn-outline btn-sm">View step</a>
+                    <a href="{% url 'roadmap:detail' active_roadmap.id %}#step-{{ step.id }}" class="btn btn-outline btn-sm">View in roadmap</a>
+                    {% else %}
+                    <a href="{% url 'roadmap:for_skill' skill.slug %}" class="btn btn-outline btn-sm">View in roadmap</a>
                     {% endif %}
                 </div>
             </div>
@@ -119,7 +123,7 @@
                 Generate a learning roadmap to see steps for this skill.
                 {% endif %}
             </p>
-            <a href="{% url 'roadmap:list' %}" class="btn btn-primary btn-sm">
+            <a href="{% url 'roadmap:for_skill' skill.slug %}" class="btn btn-primary btn-sm">
                 <i class="bi bi-stars"></i> {% if active_roadmap %}View Roadmap{% else %}Generate Roadmap{% endif %}
             </a>
         </div>

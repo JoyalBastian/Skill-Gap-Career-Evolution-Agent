@@ -23,6 +23,16 @@ class SkillListView(JourneyGatedViewMixin, LoginRequiredMixin, ListView):
     def get_queryset(self):
         return UserSkill.objects.filter(user=self.request.user).select_related("skill")
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        gap_report = SkillGapService().get_latest_report(self.request.user.id)
+        ctx["gap_slugs"] = {
+            (s.get("slug") or "").strip()
+            for s in (gap_report.prioritized_skills or [] if gap_report else [])
+            if s.get("slug")
+        }
+        return ctx
+
 
 class SkillGapView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     page_url_name = "skills:gap"
@@ -31,11 +41,16 @@ class SkillGapView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     def get(self, request):
         prediction = CareerPrediction.objects.filter(user=request.user).order_by("rank").first()
         gap_report = None
+        career_roadmap = None
         if prediction:
             gap_report = SkillGapService().get_latest_report(request.user.id)
+            career_roadmap = RoadmapService().get_roadmap_for_career(
+                request.user.id, prediction.career_id
+            )
         return render(request, self.template_name, {
             "gap_report": gap_report,
             "prediction": prediction,
+            "career_roadmap": career_roadmap,
             "user_skills": UserSkill.objects.filter(user=request.user).select_related("skill"),
         })
 

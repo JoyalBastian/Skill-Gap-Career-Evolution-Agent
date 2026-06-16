@@ -54,7 +54,14 @@
                 {% for s in m.missing_skills|slice:":5" %}<span class="badge badge-warning">{{ s }}</span>{% endfor %}
             </div>
             {% endif %}
-            <a href="{% url 'jobs:detail' m.job.slug %}" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">View Details</a>
+            <a href="{% url 'jobs:detail' m.job.slug %}" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;margin-bottom:8px;">View Details</a>
+            <form method="post" action="{% url 'jobs:ats_resume_generate' m.job.slug %}" style="margin:0;"
+                  data-ai-loader="true" data-ai-stages='["Tailoring resume…","Adding keywords…","Almost ready…"]'>
+                {% csrf_token %}
+                <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">
+                    <i class="bi bi-file-earmark-text"></i> ATS Resume
+                </button>
+            </form>
         </div>
     </div>
     {% endfor %}

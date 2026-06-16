@@ -11,7 +11,7 @@
         {% csrf_token %}
         <select name="career_id" class="form-control" style="width:200px;">
             <option value="">Top predicted career</option>
-            {% for c in careers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+            {% for c in careers %}<option value="{{ c.id }}"{% if selected_career_id == c.id|stringformat:"s" %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
         </select>
         <select name="level" class="form-control" style="width:140px;">
             <option value="beginner">Beginner</option>

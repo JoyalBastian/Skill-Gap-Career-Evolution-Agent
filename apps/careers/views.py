@@ -7,6 +7,7 @@ from django.views.generic import ListView
 from ai_engine.llm_client import GeminiUnavailable, user_message_for
 from apps.users.mixins import JourneyGatedViewMixin
 from services.career_prediction_service import CareerPredictionService
+from services.roadmap_service import RoadmapService
 from services.skill_gap_service import SkillGapService
 
 from .models import CareerDomain, CareerPrediction
@@ -53,10 +54,12 @@ class CareerDetailView(JourneyGatedViewMixin, LoginRequiredMixin, View):
         ).first()
         gap_svc = SkillGapService()
         gap_report = gap_svc.get_latest_report(request.user.id)
+        career_roadmap = RoadmapService().get_roadmap_for_career(request.user.id, career.id)
         return render(request, self.template_name, {
             "career": career,
             "prediction": prediction,
             "gap_report": gap_report if gap_report and gap_report.career_id == career.id else None,
+            "career_roadmap": career_roadmap,
         })
 
     def post(self, request, slug):

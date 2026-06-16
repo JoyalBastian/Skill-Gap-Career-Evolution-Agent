@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}ATS Resume — {{ ats_resume.job_title }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:20px;">
+    {% if ats_resume.trending_job %}
+    <a href="{% url 'jobs:detail' ats_resume.trending_job.slug %}" style="color:var(--text-muted);font-size:13px;text-decoration:none;">
+        <i class="bi bi-arrow-left"></i> Back to {{ ats_resume.job_title }}
+    </a>
+    {% else %}
+    <a href="{% url 'jobs:openings' %}" style="color:var(--text-muted);font-size:13px;text-decoration:none;">
+        <i class="bi bi-arrow-left"></i> Back to Job Openings
+    </a>
+    {% endif %}
+</div>
+
+<div class="page-header-row" style="margin-bottom:24px;">
+    <div class="page-header" style="margin:0;">
+        <h1><i class="bi bi-file-earmark-text"></i> ATS-Friendly Resume</h1>
+        <p>Tailored for <strong>{{ ats_resume.job_title }}</strong>{% if ats_resume.company %} at {{ ats_resume.company }}{% endif %}</p>
+    </div>
+    <div class="page-header-actions" style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" class="btn btn-ghost" id="copyResumeBtn"><i class="bi bi-clipboard"></i> Copy</button>
+        <a href="{% url 'jobs:ats_resume_download' ats_resume.id %}" class="btn btn-primary">
+            <i class="bi bi-download"></i> Download .txt
+        </a>
+        {% if ats_resume.trending_job %}
+        <form method="post" action="{% url 'jobs:ats_resume_generate' ats_resume.trending_job.slug %}" style="margin:0;"
+              data-ai-loader="true" data-ai-stages='["Analyzing the job…","Optimizing keywords…","Formatting for ATS…","Finalizing resume…"]'>
+            {% csrf_token %}
+            <button type="submit" class="btn btn-outline"><i class="bi bi-arrow-repeat"></i> Regenerate</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert alert-info" style="margin-bottom:20px;">
+    <i class="bi bi-info-circle"></i>
+    This plain-text resume is optimized for ATS parsers: standard headings, keyword alignment, and no tables or graphics.
+    Review and edit before applying. Save as PDF only after pasting into a simple single-column template.
+</div>
+
+{% if ats_resume.keywords_included %}
+<div class="card" style="margin-bottom:20px;">
+    <div class="card-header"><i class="bi bi-tags"></i> Keywords included</div>
+    <div class="card-body" style="display:flex;gap:6px;flex-wrap:wrap;">
+        {% for kw in ats_resume.keywords_included %}
+        <span class="badge badge-primary">{{ kw }}</span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="card">
+    <div class="card-header"><i class="bi bi-file-text"></i> Resume Preview</div>
+    <div class="card-body" style="padding:0;">
+        <pre id="atsResumeContent" style="margin:0;padding:24px;font-family:ui-monospace,monospace;font-size:13px;line-height:1.65;white-space:pre-wrap;word-break:break-word;background:var(--surface-2,#f8fafc);border-radius:0 0 12px 12px;max-height:70vh;overflow:auto;">{{ ats_resume.content }}</pre>
+    </div>
+</div>
+
+<p style="font-size:12px;color:var(--text-muted);margin-top:16px;">
+    Generated {{ ats_resume.created_at|date:"M d, Y H:i" }} · AI-generated — verify all facts before submitting applications.
+</p>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const btn = document.getElementById('copyResumeBtn');
+    const pre = document.getElementById('atsResumeContent');
+    if (!btn || !pre) return;
+    btn.addEventListener('click', function() {
+        navigator.clipboard.writeText(pre.textContent || '').then(function() {
+            const label = btn.innerHTML;
+            btn.innerHTML = '<i class="bi bi-check2"></i> Copied';
+            setTimeout(function() { btn.innerHTML = label; }, 2000);
+        });
+    });
+})();
+</script>
+{% endblock %}

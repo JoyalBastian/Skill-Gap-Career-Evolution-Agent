@@ -57,3 +57,40 @@ class JobMatch(models.Model):
 
     def __str__(self):
         return f"{self.user.username} -> {self.job.title} ({self.fit_score:.0f}%)"
+
+
+class ATSResume(models.Model):
+    """ATS-optimized plain-text resume tailored to a specific job."""
+
+    SOURCE_CHOICES = [
+        ("trending", "Trending Job"),
+        ("vacancy", "Live Vacancy"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="ats_resumes",
+    )
+    trending_job = models.ForeignKey(
+        TrendingJob,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ats_resumes",
+    )
+    source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default="trending")
+    job_title = models.CharField(max_length=200)
+    company = models.CharField(max_length=150, blank=True)
+    job_description = models.TextField(blank=True)
+    required_skills = models.JSONField(default=list, blank=True)
+    content = models.TextField()
+    keywords_included = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        target = self.company or self.job_title
+        return f"ATS resume for {target} ({self.user_id})"

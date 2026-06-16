@@ -10,7 +10,7 @@ import logging
 
 from django.utils.text import slugify
 
-from ai_engine.llm_client import LLMUnavailable, chat_json
+from ai_engine.llm_client import LLMUnavailable, active_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import CareerDomain, SkillGapReport
 from apps.skills.models import UserSkill
@@ -71,7 +71,10 @@ class SkillGapService:
             "}"
         )
 
-        data = chat_json(prompt)
+        data = chat_json(
+            prompt,
+            max_output_tokens=3072 if active_provider() == "ollama" else None,
+        )
         if not isinstance(data, dict):
             raise LLMUnavailable("Skill gap analysis did not return a valid JSON object.", provider="unknown")
 

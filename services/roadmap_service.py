@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 
-from ai_engine.llm_client import GeminiUnavailable, chat_json
+from ai_engine.llm_client import GeminiUnavailable, active_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import CareerDomain, SkillGapReport
 from apps.roadmap.models import Roadmap, RoadmapStep
@@ -75,15 +75,22 @@ class RoadmapService:
                 + "\n\n"
             )
 
+        step_rule = (
+            "1. Generate exactly 5 sequential learning steps ordered from foundational to advanced.\n"
+            if active_provider() == "ollama"
+            else "1. Generate 5-8 sequential learning steps ordered from foundational to advanced.\n"
+        )
+
         prompt = (
             "You are a career education expert. Create a personalized learning roadmap.\n\n"
             "STRICT RULES:\n"
-            "1. Generate 5-8 sequential learning steps ordered from foundational to advanced.\n"
+            + step_rule +
             "2. Each step must include 2-5 skills in the skills array.\n"
             "3. estimated_weeks MUST be an integer from 1 to 12.\n"
-            "4. prerequisites must reference title strings from earlier steps in this roadmap.\n"
-            "5. Steps must be specific to the user profile — avoid generic filler.\n"
-            + ("6. Include at least one step that explicitly addresses each top priority gap listed below.\n" if top_gaps else "")
+            "4. description max 150 characters per step.\n"
+            "5. prerequisites must reference title strings from earlier steps in this roadmap.\n"
+            "6. Steps must be specific to the user profile — avoid generic filler.\n"
+            + ("7. Include at least one step that explicitly addresses each top priority gap listed below.\n" if top_gaps else "")
             + "\n"
             f"TARGET CAREER: {career.name}\n"
             f"CAREER DESCRIPTION: {career.description}\n"
@@ -104,7 +111,10 @@ class RoadmapService:
             "}"
         )
 
-        data = chat_json(prompt)
+        data = chat_json(
+            prompt,
+            max_output_tokens=4096 if active_provider() == "ollama" else None,
+        )
         steps_data = []
         if isinstance(data, dict):
             steps_data = data.get("steps") or []
@@ -198,6 +208,14 @@ class RoadmapService:
         return Roadmap.objects.filter(user_id=user_id, is_active=True).prefetch_related(
             "steps__skills"
         ).first()
+
+    def get_roadmap_for_career(self, user_id: int, career_id: int) -> Roadmap | None:
+        """Active roadmap for a career, or the most recent one for that target."""
+        qs = Roadmap.objects.filter(user_id=user_id, target_career_id=career_id)
+        active = qs.filter(is_active=True).order_by("-generated_at").first()
+        if active:
+            return active
+        return qs.order_by("-generated_at").first()
 
     def get_steps_for_skill(self, user_id: int, skill_slug: str):
         """Roadmap steps from the active roadmap that target this skill."""

@@ -11,7 +11,7 @@ import threading
 
 from django.db.models import Q
 
-from ai_engine.llm_client import GeminiUnavailable, active_provider, chat_json
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, active_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import SkillGapReport
 from apps.recommendations.models import LearningResource, Recommendation
@@ -37,7 +37,15 @@ def _valid_url(url: str) -> str:
 
 class RecommendationService:
     def default_top_n(self) -> int:
-        return 6 if active_provider() == "ollama" else 12
+        return 4 if active_provider() == "ollama" else 12
+
+    def _ollama_max_tokens(self, top_n: int) -> int:
+        # Large JSON payloads; 2048 often truncates mid-array on local models.
+        return 4096 if top_n > 3 else 3072
+
+    def _is_truncated_json_error(self, exc: BaseException) -> bool:
+        msg = str(exc).lower()
+        return "valid json" in msg or "truncated" in msg
 
     def is_generating(self, user_id: int) -> bool:
         with _rec_lock:
@@ -81,7 +89,6 @@ class RecommendationService:
         top_n: int | None = None,
     ) -> list[Recommendation]:
         top_n = top_n or self.default_top_n()
-        max_tokens = 2048 if active_provider() == "ollama" else 3072
         profile_text = UserUnderstandingService().get_user_profile_text(user_id)
 
         profile = Profile.objects.filter(user_id=user_id).first()
@@ -103,39 +110,65 @@ class RecommendationService:
                 + "\n\n"
             )
 
-        prompt = (
-            "You are a learning coach. Recommend personalized learning resources for the user.\n\n"
-            "STRICT RULES:\n"
-            f"1. Return EXACTLY {top_n} items in the recommendations array.\n"
-            "2. Each item must address at least one of the user's gap skills (if listed).\n"
-            "3. reason must cite a specific user need (gap skill, career goal, or profile fact).\n"
-            "4. title max 120 characters; score between 0 and 1.\n"
-            "5. resource_type must be one of: course, certification, project, technology, book.\n"
-            "6. level must be one of: beginner, intermediate, advanced.\n"
-            "7. Only include url if you are confident it is a real https URL; otherwise use empty string.\n"
-            "8. Do not duplicate titles.\n\n"
-            f"USER PROFILE:\n{profile_text}\n\n"
-            f"USER LEVEL: {user_level}\n"
-            f"{gap_section}"
-            f"Return EXACTLY {top_n} resources mixing courses, certifications, projects and books.\n"
-            "Respond ONLY with a JSON object:\n"
-            "{\n"
-            "  \"recommendations\": [\n"
-            "    {\n"
-            "      \"title\": \"resource title\",\n"
-            "      \"resource_type\": \"course|certification|project|technology|book\",\n"
-            "      \"level\": \"beginner|intermediate|advanced\",\n"
-            "      \"description\": \"1-2 sentence summary\",\n"
-            "      \"url\": \"https://... or empty\",\n"
-            "      \"skills\": [\"skills covered\"],\n"
-            "      \"score\": number from 0 to 1,\n"
-            "      \"reason\": \"why this fits this user, citing a gap or goal\"\n"
-            "    }\n"
-            "  ]\n"
-            "}"
-        )
+        def build_prompt(n: int) -> str:
+            return (
+                "You are a learning coach. Recommend personalized learning resources for the user.\n\n"
+                "STRICT RULES:\n"
+                f"1. Return EXACTLY {n} items in the recommendations array.\n"
+                "2. Each item must address at least one of the user's gap skills (if listed).\n"
+                "3. reason must cite a specific user need (gap skill, career goal, or profile fact).\n"
+                "4. title max 80 characters; description max 120 characters; score between 0 and 1.\n"
+                "5. resource_type must be one of: course, certification, project, technology, book.\n"
+                "6. level must be one of: beginner, intermediate, advanced.\n"
+                "7. Only include url if you are confident it is a real https URL; otherwise use empty string.\n"
+                "8. Do not duplicate titles.\n\n"
+                f"USER PROFILE:\n{profile_text}\n\n"
+                f"USER LEVEL: {user_level}\n"
+                f"{gap_section}"
+                f"Return EXACTLY {n} resources mixing courses, certifications, projects and books.\n"
+                "Respond ONLY with a JSON object:\n"
+                "{\n"
+                "  \"recommendations\": [\n"
+                "    {\n"
+                "      \"title\": \"resource title\",\n"
+                "      \"resource_type\": \"course|certification|project|technology|book\",\n"
+                "      \"level\": \"beginner|intermediate|advanced\",\n"
+                "      \"description\": \"short summary\",\n"
+                "      \"url\": \"https://... or empty\",\n"
+                "      \"skills\": [\"skills covered\"],\n"
+                "      \"score\": number from 0 to 1,\n"
+                "      \"reason\": \"why this fits this user\"\n"
+                "    }\n"
+                "  ]\n"
+                "}"
+            )
 
-        data = chat_json(prompt, max_output_tokens=max_tokens)
+        attempt_counts = [top_n]
+        if active_provider() == "ollama" and top_n > 3:
+            attempt_counts.append(3)
+
+        data = None
+        last_exc: BaseException | None = None
+        for attempt_n in attempt_counts:
+            max_tokens = (
+                self._ollama_max_tokens(attempt_n)
+                if active_provider() == "ollama"
+                else 3072
+            )
+            try:
+                data = chat_json(build_prompt(attempt_n), max_output_tokens=max_tokens)
+                top_n = attempt_n
+                break
+            except LLMUnavailable as e:
+                last_exc = e
+                if not self._is_truncated_json_error(e):
+                    raise
+                logger.warning(
+                    "Recommendations JSON truncated (n=%s); retrying with fewer items.",
+                    attempt_n,
+                )
+        if data is None:
+            raise last_exc or GeminiUnavailable("Failed to generate recommendations.")
         items = []
         if isinstance(data, dict):
             items = data.get("recommendations") or []

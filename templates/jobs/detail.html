@@ -72,4 +72,34 @@
 </div>
 {% endif %}
 
+<div class="card" style="margin-top:16px;">
+    <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;">
+            <div style="font-weight:600;margin-bottom:4px;"><i class="bi bi-file-earmark-text"></i> ATS-Friendly Resume</div>
+            <div style="font-size:13px;color:var(--text-muted);">
+                Generate a plain-text resume tailored to this role with the right keywords for applicant tracking systems.
+            </div>
+            {% if ats_resume %}
+            <div style="font-size:12px;color:var(--success);margin-top:8px;">
+                <i class="bi bi-check-circle"></i> Last generated {{ ats_resume.created_at|date:"M d, Y H:i" }}
+            </div>
+            {% endif %}
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            {% if ats_resume %}
+            <a href="{% url 'jobs:ats_resume_detail' ats_resume.id %}" class="btn btn-outline">
+                <i class="bi bi-eye"></i> View Resume
+            </a>
+            {% endif %}
+            <form method="post" action="{% url 'jobs:ats_resume_generate' job.slug %}" style="margin:0;"
+                  data-ai-loader="true" data-ai-stages='["Analyzing the job…","Optimizing keywords…","Formatting for ATS…","Finalizing resume…"]'>
+                {% csrf_token %}
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-stars"></i> {% if ats_resume %}Regenerate{% else %}Generate ATS Resume{% endif %}
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
 {% endblock %}

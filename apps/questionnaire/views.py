@@ -25,6 +25,16 @@ def _user_display_name(user) -> str:
     return username
 
 
+def _ensure_session_finalized(session: QuestionnaireSession) -> QuestionnaireSession:
+    """Mark session completed when all questions are answered (GET paths skip POST finalize)."""
+    if session.status != "in_progress":
+        return session
+    svc = QuestionnaireService()
+    if svc.get_current_question(session):
+        return session
+    return svc.finalize_session(session.id)
+
+
 def _prep_defaults(profile: Profile | None, user) -> dict:
     rc = (profile.resume_context or {}) if profile else {}
     prep = rc.get("interview_prep") or {}
@@ -109,6 +119,7 @@ class QuestionView(LoginRequiredMixin, View):
         question = svc.get_current_question(session)
 
         if not question:
+            _ensure_session_finalized(session)
             return redirect("questionnaire:complete", session_id=session.id)
 
         return render(request, self.template_name, {
@@ -185,8 +196,10 @@ class PipelineRunView(LoginRequiredMixin, View):
             QuestionnaireSession,
             id=session_id,
             user=request.user,
-            status="completed",
         )
+        session = _ensure_session_finalized(session)
+        if session.status != "completed":
+            return JsonResponse({"error": "Interview not finished yet."}, status=400)
         svc = QuestionnaireService()
         state = svc.start_analysis_pipeline_async(session.id)
         status = svc.get_pipeline_status(request.user)
@@ -205,8 +218,10 @@ class PipelineStatusView(LoginRequiredMixin, View):
             QuestionnaireSession,
             id=session_id,
             user=request.user,
-            status="completed",
         )
+        session = _ensure_session_finalized(session)
+        if session.status != "completed":
+            return JsonResponse({"error": "Interview not finished yet."}, status=400)
         svc = QuestionnaireService()
         status = svc.get_pipeline_status(request.user)
         return JsonResponse({
@@ -221,6 +236,7 @@ class QuestionnaireCompleteView(LoginRequiredMixin, View):
 
     def get(self, request, session_id):
         session = get_object_or_404(QuestionnaireSession, id=session_id, user=request.user)
+        session = _ensure_session_finalized(session)
         svc = QuestionnaireService()
         pipeline_status = svc.get_pipeline_status(request.user)
         return render(request, self.template_name, {

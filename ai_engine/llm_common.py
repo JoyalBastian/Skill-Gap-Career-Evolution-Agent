@@ -186,6 +186,42 @@ def strip_json_fences(raw: str) -> str:
     return text.strip()
 
 
+def salvage_truncated_json(raw: str) -> Any | None:
+    """Best-effort parse when the model stops mid-JSON (common with Ollama on CPU)."""
+    text = strip_json_fences(raw).strip()
+    if not text.startswith("{"):
+        return None
+
+    idx = len(text)
+    seen: set[int] = set()
+    while idx > 1:
+        if idx in seen:
+            break
+        seen.add(idx)
+        candidate = text[:idx].rstrip().rstrip(",")
+        open_brackets = candidate.count("[") - candidate.count("]")
+        open_braces = candidate.count("{") - candidate.count("}")
+        if open_brackets < 0 or open_braces < 0:
+            cut = candidate.rfind("}")
+            if cut <= 0:
+                break
+            idx = cut + 1
+            continue
+        closed = candidate + ("]" * open_brackets) + ("}" * open_braces)
+        try:
+            return json.loads(closed)
+        except json.JSONDecodeError:
+            pass
+        prev = candidate.rfind("},")
+        if prev < 0:
+            prev = candidate.rfind("}")
+        if prev <= 0:
+            break
+        idx = prev + 1
+
+    return None
+
+
 def extract_json(raw: str, *, provider: str = "llm") -> Any:
     if not raw:
         raise LLMUnavailable("Empty response from AI model.", provider=provider)
@@ -209,4 +245,12 @@ def extract_json(raw: str, *, provider: str = "llm") -> Any:
         except json.JSONDecodeError:
             continue
 
-    raise LLMUnavailable("AI response was not valid JSON.", provider=provider)
+    salvaged = salvage_truncated_json(raw)
+    if salvaged is not None:
+        logger.warning("Recovered truncated JSON from %s response.", provider)
+        return salvaged
+
+    raise LLMUnavailable(
+        "AI response was not valid JSON (response may have been truncated).",
+        provider=provider,
+    )

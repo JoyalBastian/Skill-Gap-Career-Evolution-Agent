@@ -1,16 +1,18 @@
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, user_message_for
 from apps.careers.models import CareerPrediction
 from apps.users.mixins import JourneyGatedViewMixin
+from services.ats_resume_service import ATSResumeService
 from services.job_vacancy_service import JobVacancyService
 from services.trending_jobs_service import TrendingJobsService
 
-from .models import JobMatch, TrendingJob
+from .models import ATSResume, JobMatch, TrendingJob
 
 
 class JobOpeningsView(LoginRequiredMixin, View):
@@ -115,7 +117,74 @@ class TrendingJobDetailView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     def get(self, request, slug):
         job = get_object_or_404(TrendingJob, slug=slug)
         match = JobMatch.objects.filter(user=request.user, job=job).first()
+        ats_resume = ATSResumeService().get_latest_for_job(request.user.id, job.id)
         return render(request, self.template_name, {
             "job": job,
             "match": match,
+            "ats_resume": ats_resume,
         })
+
+
+class ATSResumeGenerateView(JourneyGatedViewMixin, LoginRequiredMixin, View):
+    """Generate an ATS-friendly resume for a trending job."""
+
+    page_url_name = "jobs:detail"
+
+    def post(self, request, slug):
+        job = get_object_or_404(TrendingJob, slug=slug)
+        svc = ATSResumeService()
+        try:
+            ats = svc.generate_for_trending_job(request.user.id, job.id)
+            messages.success(request, f"ATS resume ready for {job.title}.")
+            return redirect("jobs:ats_resume_detail", pk=ats.id)
+        except (GeminiUnavailable, LLMUnavailable) as e:
+            messages.error(request, user_message_for(e))
+            return redirect("jobs:detail", slug=slug)
+
+
+class ATSResumeVacancyGenerateView(LoginRequiredMixin, View):
+    """Generate an ATS-friendly resume for a live vacancy listing."""
+
+    def post(self, request):
+        title = (request.POST.get("job_title") or "").strip()
+        company = (request.POST.get("company") or "").strip()
+        description = (request.POST.get("description") or "").strip()
+        tags_raw = (request.POST.get("tags") or "").strip()
+        tags = [t.strip() for t in tags_raw.split(",") if t.strip()]
+
+        if not title:
+            messages.warning(request, "Job title is required to tailor a resume.")
+            return redirect("jobs:openings")
+
+        svc = ATSResumeService()
+        try:
+            ats = svc.generate_for_vacancy(
+                request.user.id,
+                job_title=title,
+                company=company,
+                description=description,
+                tags=tags,
+            )
+            messages.success(request, f"ATS resume ready for {title}.")
+            return redirect("jobs:ats_resume_detail", pk=ats.id)
+        except (GeminiUnavailable, LLMUnavailable) as e:
+            messages.error(request, user_message_for(e))
+            return redirect("jobs:openings")
+
+
+class ATSResumeDetailView(LoginRequiredMixin, View):
+    template_name = "jobs/ats_resume.html"
+
+    def get(self, request, pk):
+        ats = get_object_or_404(ATSResume, pk=pk, user=request.user)
+        return render(request, self.template_name, {"ats_resume": ats})
+
+
+class ATSResumeDownloadView(LoginRequiredMixin, View):
+    def get(self, request, pk):
+        ats = get_object_or_404(ATSResume, pk=pk, user=request.user)
+        safe_title = "".join(c if c.isalnum() or c in "-_" else "_" for c in ats.job_title)[:50]
+        filename = f"ATS_Resume_{safe_title or 'job'}.txt"
+        response = HttpResponse(ats.content, content_type="text/plain; charset=utf-8")
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response

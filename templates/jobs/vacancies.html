@@ -98,10 +98,21 @@
 
             <span style="font-size:11px;color:var(--text-muted);text-transform:capitalize;">via {{ v.source }}</span>
         </div>
-        <div style="padding:12px 20px;border-top:1px solid var(--border);">
+        <div style="padding:12px 20px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:8px;">
             <a href="{{ v.url }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary btn-sm" style="width:100%;justify-content:center;">
                 <i class="bi bi-box-arrow-up-right"></i> Apply on {{ v.source|title }}
             </a>
+            <form method="post" action="{% url 'jobs:ats_resume_vacancy' %}" style="margin:0;"
+                  data-ai-loader="true" data-ai-stages='["Reading job details…","Tailoring your resume…","Optimizing for ATS…"]'>
+                {% csrf_token %}
+                <input type="hidden" name="job_title" value="{{ v.title }}">
+                <input type="hidden" name="company" value="{{ v.company }}">
+                <input type="hidden" name="tags" value="{{ v.tags|join:', ' }}">
+                <input type="hidden" name="description" value="Role: {{ v.title }} at {{ v.company }}. Location: {{ v.location }}. Remote: {% if v.is_remote %}yes{% else %}no{% endif %}. Type: {{ v.job_type }}. Skills/tags: {{ v.tags|join:', ' }}.">
+                <button type="submit" class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;">
+                    <i class="bi bi-file-earmark-text"></i> Generate ATS Resume
+                </button>
+            </form>
         </div>
     </div>
     {% endfor %}

@@ -1,10 +1,12 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views import View
 
 from ai_engine.llm_client import GeminiUnavailable, user_message_for
 from apps.careers.models import CareerDomain
+from apps.skills.models import Skill
 from apps.users.mixins import JourneyGatedViewMixin
 from services.progress_service import ProgressService
 from services.roadmap_service import RoadmapService
@@ -20,10 +22,12 @@ class RoadmapListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
         roadmaps = Roadmap.objects.filter(user=request.user).order_by("-generated_at")
         active = RoadmapService().get_active_roadmap(request.user.id)
         careers = CareerDomain.objects.all()
+        selected_career_id = request.GET.get("career", "").strip()
         return render(request, self.template_name, {
             "roadmaps": roadmaps,
             "active_roadmap": active,
             "careers": careers,
+            "selected_career_id": selected_career_id,
         })
 
     def post(self, request):
@@ -78,6 +82,30 @@ class RoadmapDetailView(JourneyGatedViewMixin, LoginRequiredMixin, View):
             "done_count": done,
             "total_count": total,
         })
+
+
+class RoadmapForCareerRedirectView(LoginRequiredMixin, View):
+    """Send users to the roadmap for a specific career (detail or generate)."""
+
+    def get(self, request, slug):
+        career = get_object_or_404(CareerDomain, slug=slug)
+        roadmap = RoadmapService().get_roadmap_for_career(request.user.id, career.id)
+        if roadmap:
+            return redirect("roadmap:detail", pk=roadmap.id)
+        return redirect(f"{reverse('roadmap:list')}?career={career.id}")
+
+
+class RoadmapForSkillRedirectView(LoginRequiredMixin, View):
+    """Send users to roadmap steps for a skill, or the skill learning plan."""
+
+    def get(self, request, slug):
+        get_object_or_404(Skill, slug=slug)
+        steps, roadmap = RoadmapService().get_steps_for_skill(request.user.id, slug)
+        if roadmap and steps:
+            return redirect(f"{reverse('roadmap:detail', args=[roadmap.id])}#step-{steps[0].id}")
+        if roadmap:
+            return redirect("roadmap:detail", pk=roadmap.id)
+        return redirect(f"{reverse('skills:gap_skill', args=[slug])}#roadmap")
 
 
 class MarkStepCompleteView(LoginRequiredMixin, View):

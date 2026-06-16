@@ -48,6 +48,25 @@
     </div>
 </div>
 
+<div class="card" style="margin-top:16px;">
+    <div class="card-body" style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div style="flex:1;">
+            <div style="font-weight:600;margin-bottom:4px;">Learning roadmap</div>
+            <div style="font-size:13px;color:var(--text-muted);">
+                {% if career_roadmap %}
+                Your personalized path for {{ career.name }} is ready.
+                {% else %}
+                Generate a step-by-step plan to reach this career.
+                {% endif %}
+            </div>
+        </div>
+        <a href="{% url 'roadmap:for_career' career.slug %}" class="btn btn-ghost">
+            <i class="bi bi-map"></i>
+            {% if career_roadmap %}View Roadmap{% else %}Open Roadmap{% endif %}
+        </a>
+    </div>
+</div>
+
 {% if journey.has_gap_report %}
 {% include "partials/_next_step.html" %}
 {% endif %}

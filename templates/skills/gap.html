@@ -38,6 +38,16 @@
     </div>
 </div>
 
+{% if prediction %}
+<div style="margin-bottom:28px;">
+    <a href="{% url 'roadmap:for_career' prediction.career.slug %}" class="btn btn-primary">
+        <i class="bi bi-map"></i>
+        {% if career_roadmap %}View Learning Roadmap{% else %}Generate Learning Roadmap{% endif %}
+        for {{ prediction.career.name }}
+    </a>
+</div>
+{% endif %}
+
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
 
     <!-- Missing skills -->
@@ -45,7 +55,8 @@
         <div class="card-header" style="color:var(--danger);"><i class="bi bi-x-circle"></i> Skills to Develop</div>
         <div class="card-body">
             {% for skill in gap_report.prioritized_skills %}
-            <a href="{% url 'skills:gap_skill' skill.slug %}" class="gap-skill-row" title="View recommendations and roadmap for {{ skill.skill }}">
+            <div class="gap-skill-row" style="display:block;">
+                <a href="{% url 'skills:gap_skill' skill.slug %}" style="text-decoration:none;color:inherit;display:block;" title="View recommendations and roadmap for {{ skill.skill }}">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                     <span style="font-weight:600;font-size:14px;">{{ skill.skill }}</span>
                     <span class="badge badge-warning">Gap: {{ skill.gap_score|floatformat:0 }}</span>
@@ -59,7 +70,13 @@
                     <div class="progress-fill warning" style="width:{% widthratio skill.gap_score 5 100 %}%;"></div>
                 </div>
                 <span class="gap-skill-hint"><i class="bi bi-arrow-right-circle"></i> View learning plan</span>
-            </a>
+                </a>
+                <div style="margin-top:8px;">
+                    <a href="{% url 'roadmap:for_skill' skill.slug %}" class="btn btn-ghost btn-sm" style="padding:4px 10px;font-size:12px;">
+                        <i class="bi bi-map"></i> Roadmap steps
+                    </a>
+                </div>
+            </div>
             {% empty %}
             <div class="alert alert-success" style="margin:0;"><i class="bi bi-check-circle"></i> No critical skill gaps found!</div>
             {% endfor %}

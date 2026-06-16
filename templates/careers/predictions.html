@@ -37,7 +37,7 @@
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
             <a href="{% url 'careers:detail' pred.career.slug %}" class="btn btn-outline btn-sm"><i class="bi bi-eye"></i> Details</a>
             <a href="{% url 'skills:gap' %}" class="btn btn-outline btn-sm"><i class="bi bi-puzzle"></i> Skill Gap</a>
-            <a href="{% url 'roadmap:list' %}" class="btn btn-ghost btn-sm"><i class="bi bi-map"></i> Roadmap</a>
+            <a href="{% url 'roadmap:for_career' pred.career.slug %}" class="btn btn-ghost btn-sm"><i class="bi bi-map"></i> Roadmap</a>
         </div>
     </div>
 </div>
