@@ -44,6 +44,9 @@
             <div class="card-body" style="flex:1;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
                     <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
+                    {% if rec.resource and rec.resource.level %}
+                    {% include "partials/_level_badge.html" with level=rec.resource.level %}
+                    {% endif %}
                     <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">
                         Score: {{ rec.score|floatformat:2 }}
                     </span>

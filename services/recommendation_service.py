@@ -24,6 +24,30 @@ logger = logging.getLogger(__name__)
 VALID_TYPES = {"course", "certification", "project", "technology", "book"}
 VALID_LEVELS = {"beginner", "intermediate", "advanced"}
 
+LEVEL_FILTER_OPTIONS = [
+    ("", "All"),
+    ("beginner", "Beginner"),
+    ("intermediate", "Intermediate"),
+    ("advanced", "Expert"),
+]
+
+
+def _normalize_level(raw: str | None) -> str:
+    level = (raw or "beginner").strip().lower()
+    if level in ("expert", "experts", "expertise"):
+        return "advanced"
+    if level not in VALID_LEVELS:
+        return "beginner"
+    return level
+
+
+def level_display_label(level: str) -> str:
+    normalized = _normalize_level(level)
+    for value, label in LEVEL_FILTER_OPTIONS:
+        if value == normalized:
+            return label
+    return normalized.title()
+
 _rec_lock = threading.Lock()
 _rec_running_users: set[int] = set()
 
@@ -118,10 +142,10 @@ class RecommendationService:
                 "2. Each item must address at least one of the user's gap skills (if listed).\n"
                 "3. reason must cite a specific user need (gap skill, career goal, or profile fact).\n"
                 "4. title max 80 characters; description max 120 characters; score between 0 and 1.\n"
-                "5. resource_type must be one of: course, certification, project, technology, book.\n"
-                "6. level must be one of: beginner, intermediate, advanced.\n"
-                "7. Only include url if you are confident it is a real https URL; otherwise use empty string.\n"
-                "8. Do not duplicate titles.\n\n"
+            "5. resource_type must be one of: course, certification, project, technology, book.\n"
+            "6. level must be one of: beginner, intermediate, advanced (use advanced for expert-level content).\n"
+            "7. Only include url if you are confident it is a real https URL; otherwise use empty string.\n"
+            "8. Do not duplicate titles.\n\n"
                 f"USER PROFILE:\n{profile_text}\n\n"
                 f"USER LEVEL: {user_level}\n"
                 f"{gap_section}"
@@ -192,9 +216,7 @@ class RecommendationService:
             rtype = item.get("resource_type") or "course"
             if rtype not in VALID_TYPES:
                 rtype = "course"
-            level = item.get("level") or "beginner"
-            if level not in VALID_LEVELS:
-                level = "beginner"
+            level = _normalize_level(item.get("level"))
 
             dedupe_key = (title.lower(), rtype)
             if dedupe_key in seen_keys:
@@ -223,8 +245,11 @@ class RecommendationService:
             if not resource.url and url:
                 resource.url = url
                 updated = True
+            if resource.level != level:
+                resource.level = level
+                updated = True
             if updated:
-                resource.save(update_fields=["description", "url"])
+                resource.save(update_fields=["description", "url", "level"])
 
             for skill_name in item.get("skills") or []:
                 sk = ensure_skill(str(skill_name).strip())
@@ -255,10 +280,17 @@ class RecommendationService:
         )
         return created
 
-    def get_user_recommendations(self, user_id: int, category: str | None = None):
-        qs = Recommendation.objects.filter(user_id=user_id)
+    def get_user_recommendations(
+        self,
+        user_id: int,
+        category: str | None = None,
+        level: str | None = None,
+    ):
+        qs = Recommendation.objects.filter(user_id=user_id).select_related("resource")
         if category:
             qs = qs.filter(category=category)
+        if level:
+            qs = qs.filter(resource__level=_normalize_level(level))
         return qs.order_by("-score")
 
     def get_recommendations_for_skill(

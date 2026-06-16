@@ -27,15 +27,29 @@
 {% endif %}
 
 <div class="filter-pills">
-    <a href="?" class="filter-pill {% if not active_category %}active{% endif %}">All</a>
+    <a href="?{% if active_level %}level={{ active_level }}{% endif %}" class="filter-pill {% if not active_category %}active{% endif %}">All</a>
     {% for cat in categories %}
-    <a href="?category={{ cat }}" class="filter-pill {% if active_category == cat %}active{% endif %}">
+    <a href="?category={{ cat }}{% if active_level %}&level={{ active_level }}{% endif %}" class="filter-pill {% if active_category == cat %}active{% endif %}">
         {% if cat == "course" %}<i class="bi bi-play-circle"></i>
         {% elif cat == "certification" %}<i class="bi bi-award"></i>
         {% elif cat == "project" %}<i class="bi bi-code-slash"></i>
         {% elif cat == "career" %}<i class="bi bi-briefcase"></i>
         {% else %}<i class="bi bi-book"></i>{% endif %}
         {{ cat|title }}
+    </a>
+    {% endfor %}
+</div>
+
+<div class="filter-pills" style="margin-top:12px;">
+    <span style="font-size:12px;font-weight:600;color:var(--text-muted);align-self:center;margin-right:4px;">Level:</span>
+    {% for value, label in level_filters %}
+    <a href="?{% if active_category %}category={{ active_category }}&{% endif %}{% if value %}level={{ value }}{% endif %}"
+       class="filter-pill {% if active_level == value %}active{% endif %}">
+        {% if value == "beginner" %}<i class="bi bi-seedling"></i>
+        {% elif value == "intermediate" %}<i class="bi bi-bar-chart-steps"></i>
+        {% elif value == "advanced" %}<i class="bi bi-stars"></i>
+        {% endif %}
+        {{ label }}
     </a>
     {% endfor %}
 </div>
@@ -54,8 +68,11 @@
                     {% elif rec.category == "project" %}<i class="bi bi-code-slash" style="color:var(--success);"></i>
                     {% else %}<i class="bi bi-book" style="color:var(--text-muted);"></i>{% endif %}
                 </div>
-                <div>
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                     <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
+                    {% if rec.resource and rec.resource.level %}
+                    {% include "partials/_level_badge.html" with level=rec.resource.level %}
+                    {% endif %}
                 </div>
                 <div style="margin-left:auto;font-size:12px;color:var(--text-muted);">
                     Score: {{ rec.score|floatformat:2 }}

@@ -18,7 +18,12 @@ class RecommendationListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     def get(self, request):
         svc = RecommendationService()
         category = request.GET.get("category", "")
-        recs = svc.get_user_recommendations(request.user.id, category or None)
+        level = request.GET.get("level", "")
+        recs = svc.get_user_recommendations(
+            request.user.id,
+            category=category or None,
+            level=level or None,
+        )
         generating = svc.is_generating(request.user.id)
         has_interview = QuestionnaireSession.objects.filter(
             user=request.user,
@@ -32,10 +37,14 @@ class RecommendationListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
         categories = Recommendation.objects.filter(user=request.user).values_list(
             "category", flat=True
         ).distinct()
+        from services.recommendation_service import LEVEL_FILTER_OPTIONS
+
         return render(request, self.template_name, {
             "recommendations": recs,
             "categories": categories,
             "active_category": category,
+            "active_level": level,
+            "level_filters": LEVEL_FILTER_OPTIONS,
             "generating": generating,
             "has_interview": has_interview,
         })

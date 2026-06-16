@@ -195,6 +195,9 @@ body {
 .badge-warning { background: #fef3c7; color: var(--warning); }
 .badge-muted { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); }
 .badge-gemini { background: linear-gradient(135deg,#4f46e5,#7c3aed); color: white; }
+.badge-level-beginner { background: #d1fae5; color: #047857; }
+.badge-level-intermediate { background: #fef3c7; color: #b45309; }
+.badge-level-expert { background: #ede9fe; color: #6d28d9; }
 
 /* ── Forms ── */
 .form-group { margin-bottom: 20px; }
