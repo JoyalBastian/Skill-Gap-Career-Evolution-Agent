@@ -239,9 +239,17 @@ class QuestionnaireCompleteView(LoginRequiredMixin, View):
         session = _ensure_session_finalized(session)
         svc = QuestionnaireService()
         pipeline_status = svc.get_pipeline_status(request.user)
+        from apps.careers.models import SkillGapReport
+
+        gap_report = SkillGapReport.objects.filter(user=request.user).first()
+        has_gaps = bool(
+            gap_report
+            and (gap_report.missing_skills or gap_report.prioritized_skills)
+        )
         return render(request, self.template_name, {
             "session": session,
             "pipeline_status": pipeline_status,
             "pipeline_complete": svc.pipeline_is_complete(pipeline_status),
             "pipeline_running": svc.is_pipeline_running(request.user.id),
+            "has_gaps": has_gaps,
         })

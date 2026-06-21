@@ -1,17 +1,23 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView
 
-from ai_engine.llm_client import GeminiUnavailable, user_message_for
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, user_message_for
 from apps.careers.models import CareerPrediction
+from apps.recommendations.models import Recommendation
 from apps.users.mixins import JourneyGatedViewMixin
 from services.recommendation_service import RecommendationService
 from services.roadmap_service import RoadmapService
 from services.skill_gap_service import SkillGapService
+from services.skill_level_utils import enrich_gap_context
 
 from .models import Skill, UserSkill
+
+logger = logging.getLogger(__name__)
 
 
 class SkillListView(JourneyGatedViewMixin, LoginRequiredMixin, ListView):
@@ -41,17 +47,39 @@ class SkillGapView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     def get(self, request):
         prediction = CareerPrediction.objects.filter(user=request.user).order_by("rank").first()
         gap_report = None
-        career_roadmap = None
+        courses_by_slug = {}
+        gap_skills = []
         if prediction:
             gap_report = SkillGapService().get_latest_report(request.user.id)
-            career_roadmap = RoadmapService().get_roadmap_for_career(
-                request.user.id, prediction.career_id
-            )
+            if gap_report and gap_report.prioritized_skills:
+                missing_by_slug = {
+                    (m.get("slug") or "").strip(): m
+                    for m in (gap_report.missing_skills or [])
+                    if m.get("slug")
+                }
+                slugs = [
+                    (s.get("slug") or "").strip()
+                    for s in gap_report.prioritized_skills
+                    if s.get("slug")
+                ]
+                courses_by_slug = RecommendationService().get_courses_preview_by_slug(
+                    request.user.id,
+                    slugs,
+                )
+                for s in gap_report.prioritized_skills:
+                    slug = (s.get("slug") or "").strip()
+                    merged = enrich_gap_context({**missing_by_slug.get(slug, {}), **s})
+                    gap_skills.append({
+                        **merged,
+                        "skill": merged.get("skill") or merged.get("skill_name"),
+                        "course_preview": courses_by_slug.get(slug, []),
+                    })
         return render(request, self.template_name, {
             "gap_report": gap_report,
             "prediction": prediction,
-            "career_roadmap": career_roadmap,
             "user_skills": UserSkill.objects.filter(user=request.user).select_related("skill"),
+            "courses_by_slug": courses_by_slug,
+            "gap_skills": gap_skills,
         })
 
     def post(self, request):
@@ -59,8 +87,12 @@ class SkillGapView(JourneyGatedViewMixin, LoginRequiredMixin, View):
         if prediction:
             try:
                 SkillGapService().analyze_gaps(request.user.id, prediction.career_id)
-                messages.success(request, "Skill gap analysis updated.")
-            except GeminiUnavailable as e:
+                try:
+                    RecommendationService().generate_gap_targeted_courses(request.user.id)
+                except LLMUnavailable as e:
+                    logger.warning("Gap courses regen failed: %s", e)
+                messages.success(request, "Skill gap analysis and courses updated.")
+            except (GeminiUnavailable, LLMUnavailable) as e:
                 messages.error(request, user_message_for(e))
         return redirect("skills:gap")
 
@@ -79,14 +111,32 @@ class SkillGapSkillView(JourneyGatedViewMixin, LoginRequiredMixin, View):
                 if item.get("slug") == slug or (
                     (item.get("skill_name") or "").lower() == skill.name.lower()
                 ):
-                    gap_info = item
+                    gap_info = enrich_gap_context(item)
                     break
+            if not gap_info:
+                for item in gap_report.prioritized_skills or []:
+                    if item.get("slug") == slug:
+                        gap_info = enrich_gap_context(item)
+                        break
 
         recommendations = RecommendationService().get_recommendations_for_skill(
             request.user.id,
             skill.name,
             skill.slug,
         )
+        primary_recommendations = [r for r in recommendations if r.is_primary_for_gap]
+        next_recommendations = [r for r in recommendations if not r.is_primary_for_gap]
+        if not primary_recommendations and recommendations:
+            start_lvl = (gap_info or {}).get("recommended_start_level", "beginner")
+            primary_recommendations = [
+                r for r in recommendations
+                if r.resource and r.resource.level == start_lvl
+            ]
+            next_recommendations = [
+                r for r in recommendations
+                if r not in primary_recommendations
+            ]
+        filter_level = (gap_info or {}).get("recommended_start_level", "")
         roadmap_steps, active_roadmap = RoadmapService().get_steps_for_skill(
             request.user.id,
             skill.slug,
@@ -97,6 +147,48 @@ class SkillGapSkillView(JourneyGatedViewMixin, LoginRequiredMixin, View):
             "gap_info": gap_info,
             "gap_report": gap_report,
             "recommendations": recommendations,
+            "primary_recommendations": primary_recommendations,
+            "next_recommendations": next_recommendations,
+            "filter_level": filter_level,
+            "level_labels": {
+                "beginner": "Beginner",
+                "intermediate": "Intermediate",
+                "advanced": "Expert",
+            },
             "roadmap_steps": roadmap_steps,
             "active_roadmap": active_roadmap,
         })
+
+    def post(self, request, slug):
+        skill = get_object_or_404(Skill, slug=slug)
+        gap_report = SkillGapService().get_latest_report(request.user.id)
+        gap_info = None
+        if gap_report:
+            for item in gap_report.missing_skills or []:
+                if item.get("slug") == slug or (
+                    (item.get("skill_name") or "").lower() == skill.name.lower()
+                ):
+                    gap_info = item
+                    break
+        if not gap_info:
+            messages.warning(request, "This skill is not in your current gap report.")
+            return redirect("skills:gap_skill", slug=slug)
+        gap_info = enrich_gap_context(gap_info)
+        try:
+            prediction = CareerPrediction.objects.filter(user=request.user).order_by("rank").first()
+            career_name = prediction.career.name if prediction else ""
+            Recommendation.objects.filter(
+                user_id=request.user.id,
+                target_skill=skill,
+            ).delete()
+            RecommendationService().generate_courses_for_skill(
+                request.user.id,
+                skill,
+                gap_info,
+                gap_report=gap_report,
+                career_name=career_name,
+            )
+            messages.success(request, f"Generated courses for {skill.name}.")
+        except (GeminiUnavailable, LLMUnavailable) as e:
+            messages.error(request, user_message_for(e))
+        return redirect("skills:gap_skill", slug=slug)

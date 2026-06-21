@@ -14,9 +14,9 @@
             {% for c in careers %}<option value="{{ c.id }}"{% if selected_career_id == c.id|stringformat:"s" %} selected{% endif %}>{{ c.name }}</option>{% endfor %}
         </select>
         <select name="level" class="form-control" style="width:140px;">
-            <option value="beginner">Beginner</option>
-            <option value="intermediate">Intermediate</option>
-            <option value="advanced">Advanced</option>
+            <option value="beginner"{% if default_level == "beginner" %} selected{% endif %}>Beginner</option>
+            <option value="intermediate"{% if default_level == "intermediate" %} selected{% endif %}>Intermediate</option>
+            <option value="advanced"{% if default_level == "advanced" %} selected{% endif %}>Advanced</option>
         </select>
         <button class="btn btn-primary"><i class="bi bi-stars"></i> Generate Roadmap</button>
     </form>
@@ -30,9 +30,7 @@
 </div>
 {% endif %}
 
-{% include "partials/_ai_disclaimer.html" %}
-
-{% if journey.has_roadmap and not journey.has_recommendations %}
+{% if not journey.has_roadmap %}
 {% include "partials/_next_step.html" %}
 {% endif %}
 

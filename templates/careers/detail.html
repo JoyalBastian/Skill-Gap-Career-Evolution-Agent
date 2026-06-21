@@ -22,7 +22,7 @@
     <div class="card-body">
         <p style="margin:0;font-size:14px;line-height:1.7;color:var(--text-muted);">{{ prediction.explanation_text }}</p>
         <div class="progress-track" style="margin-top:16px;">
-            <div class="progress-fill success" style="width:{{ prediction.confidence_pct }}%;"></div>
+            <div class="progress-fill {% if prediction.confidence_pct >= 75 %}success{% elif prediction.confidence_pct >= 60 %}primary{% else %}warning{% endif %}" style="width:{{ prediction.confidence_pct }}%;"></div>
         </div>
     </div>
 </div>

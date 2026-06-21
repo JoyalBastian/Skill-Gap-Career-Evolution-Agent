@@ -135,7 +135,6 @@ class ATSResumeGenerateView(JourneyGatedViewMixin, LoginRequiredMixin, View):
         svc = ATSResumeService()
         try:
             ats = svc.generate_for_trending_job(request.user.id, job.id)
-            messages.success(request, f"ATS resume ready for {job.title}.")
             return redirect("jobs:ats_resume_detail", pk=ats.id)
         except (GeminiUnavailable, LLMUnavailable) as e:
             messages.error(request, user_message_for(e))
@@ -165,7 +164,6 @@ class ATSResumeVacancyGenerateView(LoginRequiredMixin, View):
                 description=description,
                 tags=tags,
             )
-            messages.success(request, f"ATS resume ready for {title}.")
             return redirect("jobs:ats_resume_detail", pk=ats.id)
         except (GeminiUnavailable, LLMUnavailable) as e:
             messages.error(request, user_message_for(e))

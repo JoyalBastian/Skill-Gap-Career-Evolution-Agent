@@ -154,6 +154,9 @@ class QuestionnaireService:
                     .values_list("topic", flat=True)
                 )
             )
+            questions_asked = list(
+                session.ai_questions.order_by("order").values_list("text", flat=True)
+            )
             resume_context = self._get_resume_context(session.user)
 
         # Gemini HTTP call outside transaction to avoid SQLite write lock during API wait
@@ -162,6 +165,7 @@ class QuestionnaireService:
             next_order,
             resume_context=resume_context,
             topics_covered=topics_covered,
+            questions_asked=questions_asked,
         )
         if not question_data:
             return None
@@ -232,16 +236,25 @@ class QuestionnaireService:
             logger.warning("Career prediction failed for user=%s: %s", session.user_id, e)
 
         prediction = session.user.career_predictions.order_by("rank").first()
+        gap_analyzed = False
         if prediction:
             try:
                 SkillGapService().analyze_gaps(session.user_id, prediction.career_id)
+                gap_analyzed = True
             except LLMUnavailable as e:
                 logger.warning("Skill gap analysis failed for user=%s: %s", session.user_id, e)
 
-        try:
-            RecommendationService().generate_recommendations(session.user_id)
-        except LLMUnavailable as e:
-            logger.warning("Recommendations failed for user=%s: %s", session.user_id, e)
+        rec_svc = RecommendationService()
+        if gap_analyzed:
+            try:
+                rec_svc.create_placeholder_gap_courses(session.user_id)
+            except Exception as e:
+                logger.warning(
+                    "Placeholder courses failed for user=%s: %s",
+                    session.user_id,
+                    e,
+                )
+            rec_svc.start_generate_async(session.user_id, force=True)
 
         try:
             RoadmapService().generate_roadmap(session.user_id)
@@ -264,7 +277,10 @@ class QuestionnaireService:
         return {
             "predictions_ok": CareerPrediction.objects.filter(user=user).exists(),
             "gap_ok": SkillGapReport.objects.filter(user=user).exists(),
-            "recs_ok": Recommendation.objects.filter(user=user).exists(),
+            "recs_ok": Recommendation.objects.filter(
+                user=user,
+                target_skill__isnull=False,
+            ).exists(),
             "roadmap_ok": Roadmap.objects.filter(user=user).exists(),
         }
 

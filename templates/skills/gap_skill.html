@@ -21,6 +21,16 @@
             {% if gap_info.gap_score %}
             <span style="font-size:13px;color:var(--text-muted);">Gap score: {{ gap_info.gap_score|floatformat:0 }}</span>
             {% endif %}
+            {% if gap_info.user_proficiency is not None %}
+            <span style="font-size:13px;color:var(--text-muted);">
+                Your level: <strong>{{ gap_info.user_proficiency }}/5</strong> → Target: <strong>{{ gap_info.required_proficiency }}/5</strong>
+            </span>
+            {% endif %}
+            {% if gap_info.recommended_start_level %}
+            <span class="badge badge-muted">
+                Start: {% if gap_info.recommended_start_level == 'advanced' %}Expert{% elif gap_info.recommended_start_level == 'intermediate' %}Intermediate{% else %}Beginner{% endif %}
+            </span>
+            {% endif %}
         </div>
         {% if gap_info.explanation %}
         <p style="margin:0;font-size:14px;line-height:1.6;color:var(--text-muted);">{{ gap_info.explanation }}</p>
@@ -32,24 +42,30 @@
 <section id="recommendations" style="margin-bottom:36px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
         <h2 style="font-size:20px;font-weight:700;margin:0;">
-            <i class="bi bi-lightbulb"></i> Recommendations
+            <i class="bi bi-play-circle"></i> Courses for this gap
         </h2>
-        <a href="{% url 'recommendations:list' %}" class="btn btn-ghost btn-sm">View all →</a>
+        {% if filter_level %}
+        <a href="{% url 'recommendations:list' %}?skill={{ skill.slug }}&level={{ filter_level }}" class="btn btn-ghost btn-sm">View all →</a>
+        {% else %}
+        <a href="{% url 'recommendations:list' %}?skill={{ skill.slug }}" class="btn btn-ghost btn-sm">View all →</a>
+        {% endif %}
     </div>
 
     {% if recommendations %}
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
-        {% for rec in recommendations %}
-        <div class="card" style="display:flex;flex-direction:column;">
+    {% if primary_recommendations %}
+    <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;color:var(--primary);">
+        <i class="bi bi-flag-fill"></i> Start here
+    </h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;margin-bottom:24px;">
+        {% for rec in primary_recommendations %}
+        <div class="card" style="display:flex;flex-direction:column;border-color:var(--primary);">
             <div class="card-body" style="flex:1;">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
                     <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
                     {% if rec.resource and rec.resource.level %}
                     {% include "partials/_level_badge.html" with level=rec.resource.level %}
                     {% endif %}
-                    <span style="margin-left:auto;font-size:12px;color:var(--text-muted);">
-                        Score: {{ rec.score|floatformat:2 }}
-                    </span>
+                    <span class="badge" style="font-size:10px;background:var(--primary-light);color:var(--primary);">Recommended</span>
                 </div>
                 <div style="font-weight:600;font-size:15px;margin-bottom:6px;">{{ rec.title }}</div>
                 <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5;">{{ rec.reason|truncatewords:30 }}</p>
@@ -64,14 +80,52 @@
         </div>
         {% endfor %}
     </div>
+    {% endif %}
+    {% if next_recommendations %}
+    <h3 style="font-size:15px;font-weight:600;margin:0 0 12px;color:var(--text-muted);">
+        <i class="bi bi-arrow-up-circle"></i> Next up
+    </h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+        {% for rec in next_recommendations %}
+        <div class="card" style="display:flex;flex-direction:column;">
+            <div class="card-body" style="flex:1;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
+                    {% if rec.resource and rec.resource.level %}
+                    {% include "partials/_level_badge.html" with level=rec.resource.level %}
+                    {% endif %}
+                </div>
+                <div style="font-weight:600;font-size:15px;margin-bottom:6px;">{{ rec.title }}</div>
+                <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5;">{{ rec.reason|truncatewords:30 }}</p>
+            </div>
+            {% if rec.url %}
+            <div style="padding:12px 20px;border-top:1px solid var(--border);">
+                <a href="{{ rec.url }}" target="_blank" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">
+                    <i class="bi bi-box-arrow-up-right"></i> Open Resource
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
     {% else %}
     <div class="card">
         <div class="card-body" style="text-align:center;padding:40px 24px;">
-            <i class="bi bi-lightbulb" style="font-size:36px;color:var(--border);margin-bottom:12px;display:block;"></i>
-            <p style="color:var(--text-muted);margin:0 0 16px;">No recommendations matched this skill yet.</p>
-            <a href="{% url 'recommendations:list' %}" class="btn btn-primary btn-sm">
-                <i class="bi bi-arrow-repeat"></i> Generate Recommendations
+            <i class="bi bi-play-circle" style="font-size:36px;color:var(--border);margin-bottom:12px;display:block;"></i>
+            <p style="color:var(--text-muted);margin:0 0 16px;">No courses generated for this skill gap yet.</p>
+            {% if gap_info %}
+            <form method="post" data-ai-loader="true" data-ai-stages='["Finding courses for {{ skill.name }}…","Saving recommendations…"]'>
+                {% csrf_token %}
+                <button class="btn btn-primary btn-sm" type="submit">
+                    <i class="bi bi-stars"></i> Generate courses for this skill
+                </button>
+            </form>
+            {% else %}
+            <a href="{% url 'skills:gap' %}" class="btn btn-ghost btn-sm">
+                <i class="bi bi-arrow-left"></i> Back to skill gaps
             </a>
+            {% endif %}
         </div>
     </div>
     {% endif %}

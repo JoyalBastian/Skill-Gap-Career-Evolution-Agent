@@ -27,8 +27,8 @@ PAGE_REQUIREMENTS: dict[str, NextStep] = {
     "skills:gap": "gaps",
     "skills:gap_skill": "gaps",
     "skills:list": "predictions",
-    "roadmap:list": "recs",
-    "roadmap:detail": "recs",
+    "roadmap:list": "gaps",
+    "roadmap:detail": "gaps",
     "recommendations:list": "gaps",
     "jobs:trending": "jobs",
     "jobs:detail": "jobs",
@@ -85,9 +85,9 @@ STEP_META: dict[NextStep, dict[str, str]] = {
         "url_name": "roadmap:list",
     },
     "recs": {
-        "title": "Explore recommendations",
-        "description": "Courses and resources picked for your career path.",
-        "cta": "View Recommendations",
+        "title": "Explore courses for your skill gaps",
+        "description": "Personalized courses and certifications to close each priority skill gap.",
+        "cta": "View Courses",
         "icon": "lightbulb",
         "url_name": "recommendations:list",
     },
@@ -131,7 +131,7 @@ JOURNEY_CHECKLIST: list[tuple[str, str, str]] = [
     ("interview", "has_interview", "Complete career interview"),
     ("predictions", "has_predictions", "Get career predictions"),
     ("gaps", "has_gap_report", "Review skill gaps"),
-    ("recs", "has_recommendations", "View recommendations"),
+    ("recs", "has_recommendations", "Courses for skill gaps"),
     ("roadmap", "has_roadmap", "Build learning roadmap"),
     ("jobs", "has_trending_match", "Match trending jobs"),
 ]
@@ -141,7 +141,7 @@ SIDEBAR_PAGES = {
     "careers:predictions": "predictions",
     "skills:gap": "gaps",
     "recommendations:list": "gaps",
-    "roadmap:list": "recs",
+    "roadmap:list": "gaps",
     "jobs:trending": "jobs",
     "progress:dashboard": "predictions",
     "analytics:dashboard": "predictions",
@@ -230,13 +230,9 @@ class JourneyService:
         from apps.questionnaire.models import QuestionnaireSession
         from apps.recommendations.models import Recommendation
         from apps.roadmap.models import Roadmap
-        from apps.users.models import Profile, ResumeUpload
+        from apps.users.models import ResumeUpload
 
-        profile = Profile.objects.filter(user=user).first()
-        has_resume = bool(
-            profile
-            and profile.has_resume_context()
-        ) or ResumeUpload.objects.filter(
+        has_resume = ResumeUpload.objects.filter(
             user=user, status="completed"
         ).exists()
 

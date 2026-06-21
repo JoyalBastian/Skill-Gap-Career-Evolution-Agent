@@ -52,6 +52,20 @@ class AIQuestion(models.Model):
     def __str__(self):
         return f"AIQ#{self.order} [{self.session_id}]: {self.text[:60]}"
 
+    @property
+    def topic_label(self) -> str:
+        if not self.topic:
+            return ""
+        return self.topic.replace("_", " ").strip().title()
+
+    @property
+    def choice_options(self) -> list[str]:
+        """Options safe for templates (flattens legacy dict-shaped entries)."""
+        from ai_engine.question_generator import normalize_option_list
+
+        min_opts = 3 if self.question_type != "free_text" else 0
+        return normalize_option_list(self.options, min_options=min_opts)
+
 
 class AIAnswer(models.Model):
     """User's answer to an AI-generated question."""

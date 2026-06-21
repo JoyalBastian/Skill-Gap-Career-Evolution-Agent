@@ -14,8 +14,7 @@
 </div>
 
 {% if gap_report %}
-
-{% if not journey.has_roadmap %}
+{% if journey.next_step == 'recs' or not journey.has_roadmap %}
 {% include "partials/_next_step.html" %}
 {% endif %}
 
@@ -38,29 +37,29 @@
     </div>
 </div>
 
-{% if prediction %}
-<div style="margin-bottom:28px;">
-    <a href="{% url 'roadmap:for_career' prediction.career.slug %}" class="btn btn-primary">
-        <i class="bi bi-map"></i>
-        {% if career_roadmap %}View Learning Roadmap{% else %}Generate Learning Roadmap{% endif %}
-        for {{ prediction.career.name }}
-    </a>
-</div>
-{% endif %}
-
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
 
     <!-- Missing skills -->
     <div class="card">
         <div class="card-header" style="color:var(--danger);"><i class="bi bi-x-circle"></i> Skills to Develop</div>
         <div class="card-body">
-            {% for skill in gap_report.prioritized_skills %}
+            {% for skill in gap_skills %}
             <div class="gap-skill-row" style="display:block;">
                 <a href="{% url 'skills:gap_skill' skill.slug %}" style="text-decoration:none;color:inherit;display:block;" title="View recommendations and roadmap for {{ skill.skill }}">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                     <span style="font-weight:600;font-size:14px;">{{ skill.skill }}</span>
                     <span class="badge badge-warning">Gap: {{ skill.gap_score|floatformat:0 }}</span>
                 </div>
+                {% if skill.user_proficiency is not None %}
+                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--text-muted);">
+                    <span>Your level: <strong>{{ skill.user_proficiency }}/5</strong></span>
+                    <span>→</span>
+                    <span>Target: <strong>{{ skill.required_proficiency }}/5</strong></span>
+                    {% if skill.recommended_start_level %}
+                    <span class="badge badge-muted">Start: {% if skill.recommended_start_level == 'advanced' %}Expert{% else %}{{ skill.recommended_start_level|title }}{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% endif %}
                 {% for ms in gap_report.missing_skills %}
                     {% if ms.skill_name == skill.skill and ms.explanation %}
                     <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5;">{{ ms.explanation }}</p>
@@ -69,6 +68,28 @@
                 <div class="progress-track" style="margin-top:8px;height:4px;">
                     <div class="progress-fill warning" style="width:{% widthratio skill.gap_score 5 100 %}%;"></div>
                 </div>
+                {% if skill.course_preview %}
+                <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin-bottom:6px;">
+                        <span class="badge badge-muted" style="font-size:11px;">
+                            <i class="bi bi-play-circle"></i> {{ skill.course_preview|length }} course{{ skill.course_preview|length|pluralize }}
+                        </span>
+                        <a href="{% url 'recommendations:list' %}?skill={{ skill.slug }}" class="btn btn-primary btn-sm" style="padding:4px 10px;font-size:12px;" onclick="event.stopPropagation();">
+                            <i class="bi bi-lightbulb"></i> View courses
+                        </a>
+                    </div>
+                    <ul style="margin:0;padding:0;list-style:none;font-size:12px;color:var(--text-muted);line-height:1.5;">
+                        {% for rec in skill.course_preview %}
+                        <li style="margin-bottom:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                            {% if rec.resource and rec.resource.level %}
+                            {% include "partials/_level_badge.html" with level=rec.resource.level %}
+                            {% endif %}
+                            <span>{{ rec.title|truncatechars:50 }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
                 <span class="gap-skill-hint"><i class="bi bi-arrow-right-circle"></i> View learning plan</span>
                 </a>
                 <div style="margin-top:8px;">
@@ -106,8 +127,10 @@
     </div>
 </div>
 
-{% if not journey.has_roadmap %}
+{% if gap_report %}
+{% if journey.next_step == 'recs' or not journey.has_roadmap %}
 {% include "partials/_next_step.html" %}
+{% endif %}
 {% endif %}
 
 {% else %}

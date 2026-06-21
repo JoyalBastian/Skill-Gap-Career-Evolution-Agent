@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 
-from ai_engine.llm_client import GeminiUnavailable, chat_json
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, chat_json
 from ai_engine.resume_analysis.pdf_parser import extract_text_from_pdf
 from apps.skills.models import ResumeAnalysisResult, Skill, UserSkill
 from apps.users.models import Profile, ResumeUpload
@@ -34,6 +34,7 @@ Respond ONLY with valid JSON in this exact format:
   "education": [{{"degree": "string", "field": "string", "institution": "string"}}],
   "job_titles": ["list of past job titles"],
   "skills": ["list of all skills, technologies, tools, frameworks mentioned"],
+  "skill_details": [{{"name": "skill name", "proficiency": 1-5}}],
   "certifications": ["list of certifications"],
   "career_domain": "best matching career domain in lowercase-hyphen form (e.g. software-development, data-science, ui-ux-design)",
   "summary": "2-3 sentence professional summary",
@@ -50,6 +51,14 @@ def _extract_with_gemini(text: str) -> dict:
     if not isinstance(data, dict):
         raise GeminiUnavailable("Resume extraction did not return a JSON object.")
     return data
+
+
+def _clip_prof(value, lo: int = 1, hi: int = 5) -> int:
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        v = 3
+    return max(lo, min(hi, v))
 
 
 class ResumeAnalysisService:
@@ -69,6 +78,15 @@ class ResumeAnalysisService:
             data = _extract_with_gemini(text)
 
             skills_list = data.get("skills") or []
+            skill_details = data.get("skill_details") or []
+            prof_by_name: dict[str, int] = {}
+            for entry in skill_details:
+                if not isinstance(entry, dict):
+                    continue
+                name = (entry.get("name") or "").strip()
+                if name:
+                    prof_by_name[name.lower()] = _clip_prof(entry.get("proficiency"))
+
             skills_detected = []
             for skill_name in skills_list:
                 if not isinstance(skill_name, str):
@@ -76,17 +94,18 @@ class ResumeAnalysisService:
                 skill = ensure_skill(skill_name)
                 if not skill:
                     continue
+                proficiency = prof_by_name.get(skill_name.lower(), 3)
                 skills_detected.append({
                     "name": skill.name,
                     "slug": skill.slug,
                     "confidence": 0.8,
-                    "proficiency": 3,
+                    "proficiency": proficiency,
                 })
                 UserSkill.objects.update_or_create(
                     user=resume.user,
                     skill=skill,
                     defaults={
-                        "proficiency": 3,
+                        "proficiency": proficiency,
                         "source": "resume",
                         "confidence": 0.8,
                     },
@@ -175,8 +194,8 @@ class ResumeAnalysisService:
                 logger.warning("Skill gap skipped: %s", e)
 
         try:
-            RecommendationService().generate_recommendations(user.id)
-        except GeminiUnavailable as e:
+            RecommendationService().generate_gap_targeted_courses(user.id)
+        except (GeminiUnavailable, LLMUnavailable) as e:
             logger.warning("Recommendations skipped: %s", e)
 
         try:

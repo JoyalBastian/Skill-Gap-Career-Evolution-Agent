@@ -4,8 +4,8 @@
 
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:28px;flex-wrap:wrap;gap:12px;">
     <div class="page-header" style="margin:0;">
-        <h1> Recommendations</h1>
-        <p>Personalized learning resources based on your profile and skill gaps</p>
+        <h1>Courses for Skill Gaps</h1>
+        <p>Personalized courses and certifications to close each priority skill gap</p>
     </div>
     <form method="post" data-ai-overlay="false">
         {% csrf_token %}
@@ -13,12 +13,48 @@
     </form>
 </div>
 
-{% include "partials/_ai_disclaimer.html" %}
+{% if filter_skill %}
+<div class="card" style="margin-bottom:20px;border-color:var(--primary);">
+    <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div>
+            <div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:4px;">
+                <i class="bi bi-bullseye"></i> Skill gap
+            </div>
+            <div style="font-weight:600;font-size:16px;">Courses for {{ filter_skill.name }}</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:8px 0 0;">Learning resources targeted at this skill gap</p>
+        </div>
+        <a href="{% url 'skills:gap_skill' filter_skill.slug %}" class="btn btn-ghost btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to skill gap
+        </a>
+    </div>
+</div>
+{% endif %}
+
+{% if roadmap_step %}
+<div class="card" style="margin-bottom:20px;border-color:var(--primary);">
+    <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;">
+        <div>
+            <div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:4px;">
+                <i class="bi bi-map"></i> Roadmap step {{ roadmap_step.order }}
+            </div>
+            <div style="font-weight:600;font-size:16px;">{{ roadmap_step.title }}</div>
+            <p style="font-size:13px;color:var(--text-muted);margin:8px 0 0;">Learning resources for this roadmap step</p>
+        </div>
+        <a href="{% url 'roadmap:detail' roadmap_step.roadmap_id %}#step-{{ roadmap_step.id }}" class="btn btn-ghost btn-sm">
+            <i class="bi bi-arrow-left"></i> Back to roadmap
+        </a>
+    </div>
+</div>
+{% endif %}
 
 {% if generating %}
 <div class="alert alert-info" id="recsGeneratingBanner" style="margin-bottom:20px;">
     <i class="bi bi-hourglass-split"></i>
-    We are generating your recommendations in the background. This usually takes 1–3 minutes — the page will refresh automatically when ready.
+    {% if has_gap_targeted %}
+    Your courses are ready — we are enhancing titles and details in the background. This page will refresh automatically.
+    {% else %}
+    We are generating courses for your skill gaps in the background. This usually takes 1–3 minutes — the page will refresh automatically when ready.
+    {% endif %}
 </div>
 {% endif %}
 
@@ -26,6 +62,7 @@
 {% include "partials/_next_step.html" %}
 {% endif %}
 
+{% if not roadmap_step and not filter_skill %}
 <div class="filter-pills">
     <a href="?{% if active_level %}level={{ active_level }}{% endif %}" class="filter-pill {% if not active_category %}active{% endif %}">All</a>
     {% for cat in categories %}
@@ -53,8 +90,79 @@
     </a>
     {% endfor %}
 </div>
+{% endif %}
 
-{% if recommendations %}
+{% if gap_groups %}
+{% for group in gap_groups %}
+<section style="margin-bottom:32px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:12px;">
+        <h2 style="font-size:18px;font-weight:700;margin:0;">
+            <i class="bi bi-bullseye"></i> {{ group.skill.name }}
+        </h2>
+        <a href="{% url 'recommendations:list' %}?skill={{ group.skill.slug }}" class="btn btn-ghost btn-sm">View all →</a>
+    </div>
+    {% if group.level_groups %}
+    {% for level_group in group.level_groups %}
+    <div style="margin-bottom:16px;">
+        <h3 style="font-size:14px;font-weight:600;margin:0 0 10px;color:var(--text-muted);">
+            {% if level_group.level == 'advanced' %}<i class="bi bi-stars"></i> Expert{% elif level_group.level == 'intermediate' %}<i class="bi bi-bar-chart-steps"></i> Intermediate{% else %}<i class="bi bi-seedling"></i> Beginner{% endif %}
+        </h3>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+            {% for rec in level_group.recommendations %}
+            <div class="card" style="display:flex;flex-direction:column;">
+                <div class="card-body" style="flex:1;">
+                    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                        <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
+                        {% if rec.resource and rec.resource.level %}
+                        {% include "partials/_level_badge.html" with level=rec.resource.level %}
+                        {% endif %}
+                        {% if rec.is_primary_for_gap %}
+                        <span class="badge" style="font-size:10px;background:var(--primary-light);color:var(--primary);">Start here</span>
+                        {% endif %}
+                    </div>
+                    <div style="font-weight:600;font-size:15px;margin-bottom:6px;">{{ rec.title }}</div>
+                    <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5;">{{ rec.reason|truncatewords:25 }}</p>
+                </div>
+                {% if rec.url %}
+                <div style="padding:12px 20px;border-top:1px solid var(--border);">
+                    <a href="{{ rec.url }}" target="_blank" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">
+                        <i class="bi bi-box-arrow-up-right"></i> Open Resource
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
+        {% for rec in group.recommendations %}
+        <div class="card" style="display:flex;flex-direction:column;">
+            <div class="card-body" style="flex:1;">
+                <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                    <span class="badge badge-muted" style="font-size:11px;">{{ rec.category|title }}</span>
+                    {% if rec.resource and rec.resource.level %}
+                    {% include "partials/_level_badge.html" with level=rec.resource.level %}
+                    {% endif %}
+                </div>
+                <div style="font-weight:600;font-size:15px;margin-bottom:6px;">{{ rec.title }}</div>
+                <p style="font-size:13px;color:var(--text-muted);margin:0;line-height:1.5;">{{ rec.reason|truncatewords:25 }}</p>
+            </div>
+            {% if rec.url %}
+            <div style="padding:12px 20px;border-top:1px solid var(--border);">
+                <a href="{{ rec.url }}" target="_blank" class="btn btn-outline btn-sm" style="width:100%;justify-content:center;">
+                    <i class="bi bi-box-arrow-up-right"></i> Open Resource
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</section>
+{% endfor %}
+{% elif recommendations %}
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
     {% for rec in recommendations %}
     <div class="card" style="display:flex;flex-direction:column;">
@@ -96,16 +204,35 @@
     <div class="card-body" style="text-align:center;padding:60px 32px;">
         {% if generating %}
         <div class="btn-spinner" style="width:40px;height:40px;margin:0 auto 16px;border-width:3px;"></div>
-        <h3 style="font-weight:600;margin-bottom:8px;">Generating recommendations…</h3>
-        <p style="color:var(--text-muted);margin-bottom:0;">Your interview answers are being analyzed. Please keep this tab open — results will appear shortly.</p>
+        <h3 style="font-weight:600;margin-bottom:8px;">Generating courses for your skill gaps…</h3>
+        <p style="color:var(--text-muted);margin-bottom:0;">Your gap analysis is being turned into targeted courses. Please keep this tab open — results will appear shortly.</p>
+        {% elif has_active_filters and all_recommendations %}
+        <i class="bi bi-funnel" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">No courses match these filters</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Try another level or category, or view all {{ all_recommendations.count }} resource{{ all_recommendations.count|pluralize }}.</p>
+        <a href="{% url 'recommendations:list' %}" class="btn btn-primary"><i class="bi bi-x-circle"></i> Clear filters</a>
+        {% elif roadmap_step %}
+        <i class="bi bi-lightbulb" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
+        <h3 style="font-weight:600;margin-bottom:8px;">No resources matched this step yet</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Try refreshing recommendations, or browse all resources for your profile.</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <button class="btn btn-primary" type="submit"><i class="bi bi-arrow-repeat"></i> Generate Recommendations</button>
+            </form>
+            <a href="{% url 'recommendations:list' %}" class="btn btn-ghost">View all recommendations</a>
+        </div>
         {% elif has_interview %}
         <i class="bi bi-hourglass-split" style="font-size:48px;color:var(--primary);margin-bottom:16px;display:block;"></i>
-        <h3 style="font-weight:600;margin-bottom:8px;">Recommendations are on the way</h3>
-        <p style="color:var(--text-muted);margin-bottom:24px;">Click Refresh to start generation, or wait if you just finished the interview analysis.</p>
-        <form method="post" style="display:inline;">
-            {% csrf_token %}
-            <button class="btn btn-primary" type="submit"><i class="bi bi-arrow-repeat"></i> Generate Now</button>
-        </form>
+        <h3 style="font-weight:600;margin-bottom:8px;">No courses yet</h3>
+        <p style="color:var(--text-muted);margin-bottom:24px;">Complete skill gap analysis first, then click Refresh to generate beginner, intermediate, and expert courses for each gap.</p>
+        <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+            <a href="{% url 'skills:gap' %}" class="btn btn-ghost"><i class="bi bi-bullseye"></i> Skill Gap Analysis</a>
+            <form method="post" style="display:inline;">
+                {% csrf_token %}
+                <button class="btn btn-primary" type="submit"><i class="bi bi-arrow-repeat"></i> Generate Courses</button>
+            </form>
+        </div>
         {% else %}
         <i class="bi bi-lightbulb" style="font-size:48px;color:var(--border);margin-bottom:16px;display:block;"></i>
         <h3 style="font-weight:600;margin-bottom:8px;">No recommendations yet</h3>
@@ -119,13 +246,16 @@
 {% endblock %}
 
 {% block extra_js %}
-{% if generating or not recommendations and has_interview %}
+{% if generating %}
 <script>
 (function() {
     const statusUrl = "{% url 'recommendations:status' %}";
     let timer = null;
+    let attempts = 0;
+    const maxAttempts = 90;
 
     function poll() {
+        attempts += 1;
         fetch(statusUrl, { credentials: "same-origin" })
             .then(function(r) { return r.json(); })
             .then(function(data) {
@@ -133,8 +263,19 @@
                     window.location.reload();
                     return;
                 }
-                if (!data.generating && !data.ready) {
+                if (!data.generating && attempts >= 3) {
                     if (timer) clearInterval(timer);
+                    if (data.gap_count === 0) {
+                        var banner = document.getElementById("recsGeneratingBanner");
+                        if (banner) {
+                            banner.className = "alert alert-warning";
+                            banner.innerHTML = "<i class=\"bi bi-exclamation-triangle\"></i> "
+                                + "Course generation did not finish. Check that your AI provider is running, then click Refresh.";
+                        }
+                    }
+                }
+                if (attempts >= maxAttempts && timer) {
+                    clearInterval(timer);
                 }
             })
             .catch(function() {});
@@ -142,6 +283,22 @@
 
     timer = setInterval(poll, 4000);
     poll();
+})();
+</script>
+{% elif has_interview and not has_gap_targeted and not gap_groups and not recommendations %}
+<script>
+(function() {
+    const statusUrl = "{% url 'recommendations:status' %}";
+    let timer = setInterval(function() {
+        fetch(statusUrl, { credentials: "same-origin" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.ready || data.generating) {
+                    window.location.reload();
+                }
+            })
+            .catch(function() {});
+    }, 4000);
 })();
 </script>
 {% endif %}

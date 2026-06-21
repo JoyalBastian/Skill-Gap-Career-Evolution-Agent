@@ -94,15 +94,7 @@
                 <p style="margin:0;">3. Your answers drive career predictions, skill gaps, and your roadmap.</p>
             </div>
         </div>
-        {% if has_resume %}
-        <div class="alert alert-success" style="margin:0;">
-            <i class="bi bi-file-earmark-check"></i>
-            <div>
-                <strong>Resume on file</strong><br>
-                <span style="font-size:13px;">We will use your uploaded resume so the interview does not repeat what we already know.</span>
-            </div>
-        </div>
-        {% else %}
+        {% if not has_resume %}
         <div class="alert alert-info" style="margin:0;">
             <i class="bi bi-upload"></i>
             <div>

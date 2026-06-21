@@ -4,10 +4,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
-from ai_engine.llm_client import GeminiUnavailable, user_message_for
-from apps.careers.models import CareerDomain
+from ai_engine.llm_client import LLMUnavailable, user_message_for
+from apps.careers.models import CareerDomain, CareerPrediction
 from apps.skills.models import Skill
 from apps.users.mixins import JourneyGatedViewMixin
+from apps.users.models import Profile
 from services.progress_service import ProgressService
 from services.roadmap_service import RoadmapService
 
@@ -19,27 +20,47 @@ class RoadmapListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     template_name = "roadmap/list.html"
 
     def get(self, request):
-        roadmaps = Roadmap.objects.filter(user=request.user).order_by("-generated_at")
+        roadmaps = (
+            Roadmap.objects.filter(user=request.user)
+            .select_related("target_career")
+            .order_by("-generated_at")
+        )
         active = RoadmapService().get_active_roadmap(request.user.id)
         careers = CareerDomain.objects.all()
         selected_career_id = request.GET.get("career", "").strip()
+        profile = Profile.objects.filter(user=request.user).first()
+        default_level = profile.target_career_level if profile else "beginner"
+        top_prediction = (
+            CareerPrediction.objects.filter(user=request.user)
+            .select_related("career")
+            .order_by("rank")
+            .first()
+        )
+        if not selected_career_id and top_prediction:
+            selected_career_id = str(top_prediction.career_id)
         return render(request, self.template_name, {
             "roadmaps": roadmaps,
             "active_roadmap": active,
             "careers": careers,
             "selected_career_id": selected_career_id,
+            "default_level": default_level,
         })
 
     def post(self, request):
         career_id = request.POST.get("career_id")
         level = request.POST.get("level", "beginner")
         try:
+            parsed_career_id = int(career_id) if career_id else None
+        except (TypeError, ValueError):
+            messages.error(request, "Please choose a valid career.")
+            return redirect("roadmap:list")
+        try:
             roadmap = RoadmapService().generate_roadmap(
                 request.user.id,
-                career_id=int(career_id) if career_id else None,
+                career_id=parsed_career_id,
                 level=level,
             )
-        except GeminiUnavailable as e:
+        except LLMUnavailable as e:
             messages.error(request, user_message_for(e))
             return redirect("roadmap:list")
 

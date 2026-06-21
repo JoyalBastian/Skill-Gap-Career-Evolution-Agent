@@ -21,7 +21,7 @@
         <span class="badge badge-muted"><i class="bi bi-lightbulb"></i> Smart Question</span>
         {% endif %}
         {% if question.topic %}
-        <span class="badge badge-muted" style="margin-left:6px;">{{ question.topic|title|cut:"_" }}</span>
+        <span class="badge badge-muted" style="margin-left:6px;">{{ question.topic_label }}</span>
         {% endif %}
     </div>
 
@@ -44,7 +44,7 @@
 
             {% elif question.question_type == "single_choice" %}
             <div id="choiceGroup">
-                {% for option in question.options %}
+                {% for option in question.choice_options %}
                 <div class="choice-option" onclick="selectOption(this, 'radio')">
                     <input type="radio" name="options" value="{{ option }}" id="opt_{{ forloop.counter }}">
                     <label for="opt_{{ forloop.counter }}">{{ option }}</label>
@@ -62,7 +62,7 @@
             {% elif question.question_type == "multi_choice" %}
             <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;"><i class="bi bi-info-circle"></i> Select all that apply</p>
             <div id="choiceGroup">
-                {% for option in question.options %}
+                {% for option in question.choice_options %}
                 <div class="choice-option" onclick="selectOption(this, 'checkbox')">
                     <input type="checkbox" name="options" value="{{ option }}" id="opt_{{ forloop.counter }}">
                     <label for="opt_{{ forloop.counter }}">{{ option }}</label>

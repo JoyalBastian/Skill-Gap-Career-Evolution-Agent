@@ -19,6 +19,13 @@ class Skill(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def display_name(self) -> str:
+        """Readable label even when name was stored as a slug."""
+        from services.skill_utils import humanize_skill_name
+
+        return humanize_skill_name(self.name)
+
 
 class UserSkill(models.Model):
     SOURCE_CHOICES = [

@@ -43,7 +43,7 @@
                     <span class="status-icon {% if pipeline_status.recs_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
                         <i class="bi bi-{% if pipeline_status.recs_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
                     </span>
-                    Recommendations
+                    Courses for skill gaps
                 </li>
                 <li data-key="roadmap_ok">
                     <span class="status-icon {% if pipeline_status.roadmap_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
@@ -60,6 +60,14 @@
     </div>
 
     {% include "partials/_next_step.html" %}
+
+    {% if has_gaps and pipeline_status.gap_ok %}
+    <div style="text-align:center;margin-top:8px;margin-bottom:8px;">
+        <a href="{% url 'skills:gap' %}" class="btn btn-primary btn-lg">
+            <i class="bi bi-play-circle"></i> View courses for your skill gaps
+        </a>
+    </div>
+    {% endif %}
 
     <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
         <a href="{% url 'careers:predictions' %}" class="btn btn-ghost btn-lg">
@@ -86,7 +94,7 @@
         'Building your profile…',
         'Generating career matches…',
         'Analyzing skill gaps…',
-        'Creating recommendations…',
+        'Creating courses for skill gaps…',
         'Building your roadmap…',
     ];
     let pollTimer = null;

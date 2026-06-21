@@ -36,7 +36,8 @@ class Profile(models.Model):
         return f"Profile: {self.user.username}"
 
     def has_resume_context(self) -> bool:
-        return bool(self.resume_context)
+        """True only when the user has uploaded and completed resume analysis."""
+        return self.user.resumes.filter(status="completed").exists()
 
 
 class ResumeUpload(models.Model):

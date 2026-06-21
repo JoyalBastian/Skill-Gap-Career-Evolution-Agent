@@ -1,5 +1,5 @@
 """
-Base Django settings for CareerPath AI.
+Base Django settings for CareerPath.
 
 This is a Gemini-only application: there is no sklearn, no SBERT, no spaCy,
 and no seeded knowledge catalog. The only external AI dependency is Google
@@ -129,7 +129,7 @@ MEDIA_ROOT = BASE_DIR / "static" / "uploads"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-SITE_NAME = env("SITE_NAME", default="CareerPath AI")
+SITE_NAME = env("SITE_NAME", default="CareerPath")
 
 LOGIN_URL = "authentication:login"
 LOGIN_REDIRECT_URL = "users:dashboard"

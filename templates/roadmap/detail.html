@@ -54,19 +54,24 @@
             <div class="card-body">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
                     <div style="flex:1;">
-                        <div style="font-weight:600;font-size:16px;margin-bottom:6px;">{{ step.title }}</div>
-                        <p style="font-size:14px;color:var(--text-muted);margin:0 0 12px;line-height:1.6;">{{ step.description }}</p>
+                        <a href="{% url 'recommendations:list' %}?step={{ step.id }}" style="text-decoration:none;color:inherit;">
+                            <div style="font-weight:600;font-size:16px;margin-bottom:6px;">{{ step.title }}</div>
+                            <p style="font-size:14px;color:var(--text-muted);margin:0 0 12px;line-height:1.6;">{{ step.description }}</p>
+                        </a>
                         <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
                             <span style="font-size:13px;color:var(--text-muted);"><i class="bi bi-clock"></i> ~{{ step.estimated_weeks }} weeks</span>
                             {% for skill in step.skills.all %}
-                            <span class="badge badge-primary">{{ skill.name }}</span>
+                            <span class="badge badge-primary">{{ skill.display_name }}</span>
                             {% endfor %}
                         </div>
+                        <a href="{% url 'recommendations:list' %}?step={{ step.id }}" class="btn btn-outline btn-sm" style="margin-top:12px;">
+                            <i class="bi bi-lightbulb"></i> View recommendations
+                        </a>
                     </div>
                     {% if step.id not in completed_step_ids %}
                     <form method="post" action="{% url 'roadmap:step_complete' step.id %}">
                         {% csrf_token %}
-                        <button class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Mark Done</button>
+                        <button type="submit" class="btn btn-success btn-sm"><i class="bi bi-check-circle"></i> Mark Done</button>
                     </form>
                     {% else %}
                     <span class="badge badge-success"><i class="bi bi-check-circle-fill"></i> Completed</span>

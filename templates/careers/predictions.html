@@ -5,7 +5,7 @@
 <div class="page-header-row">
     <div class="page-header">
         <h1> Career Predictions</h1>
-        <p>Career matches personalized from your profile</p>
+        <p>Career matches personalized from your profile — each fit score is independent (0–100%)</p>
     </div>
     <div class="page-header-actions">
         <form method="post" data-ai-loader="true" data-ai-stages='["Analyzing your profile…","Ranking career matches…","Saving predictions…"]'>
@@ -20,7 +20,6 @@
 {% endif %}
 
 {% if predictions %}
-{% include "partials/_ai_disclaimer.html" %}
 {% for pred in predictions %}
 <div class="career-card" style="display:flex;align-items:flex-start;gap:20px;margin-bottom:16px;">
     <div class="rank-badge {% if pred.rank == 1 %}gold{% endif %}" style="margin-top:4px;">#{{ pred.rank }}</div>
@@ -31,7 +30,7 @@
             {% if pred.rank == 1 %}<span class="badge badge-success">Best Match</span>{% endif %}
         </div>
         <div class="progress-track" style="margin-bottom:10px;">
-            <div class="progress-fill {% if pred.confidence_pct >= 50 %}success{% elif pred.confidence_pct >= 25 %}{% else %}warning{% endif %}" style="width:{{ pred.confidence_pct }}%;"></div>
+            <div class="progress-fill {% if pred.confidence_pct >= 75 %}success{% elif pred.confidence_pct >= 60 %}primary{% else %}warning{% endif %}" style="width:{{ pred.confidence_pct }}%;"></div>
         </div>
         <p style="font-size:14px;color:var(--text-muted);margin:0;">{{ pred.explanation_text }}</p>
         <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;">
