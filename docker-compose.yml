@@ -64,6 +64,12 @@ services:
       - .env
     environment:
       AI_PROVIDER: ${AI_PROVIDER:-gemini}
+      ANALYSIS_AI_PROVIDER: ${ANALYSIS_AI_PROVIDER:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_ENABLED: ${GEMINI_ENABLED:-True}
+      GEMINI_FALLBACK_MODELS: ${GEMINI_FALLBACK_MODELS:-gemini-2.0-flash,gemini-flash-latest}
+      LLM_GEMINI_FALLBACK_OLLAMA: ${LLM_GEMINI_FALLBACK_OLLAMA:-True}
       # Inside Docker, Ollama is the service name — not localhost from .env
       OLLAMA_BASE_URL: http://ollama:11434
       GUNICORN_TIMEOUT: ${GUNICORN_TIMEOUT:-300}
@@ -75,6 +81,7 @@ services:
     volumes:
       - sqlite_data:/app/db
       - media_uploads:/app/static/uploads
+      - ./.env:/app/.env:ro
     healthcheck:
       test: ["CMD", "curl", "-fs", "http://localhost:8000/accounts/login/"]
       interval: 30s

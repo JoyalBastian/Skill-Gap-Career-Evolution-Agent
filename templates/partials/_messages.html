@@ -1,0 +1,14 @@
+{% if items %}
+{% for item in items %}
+{% if item.is_error %}
+<div class="error-banner">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span>{{ item.text }}</span>
+</div>
+{% else %}
+<div class="alert alert-{{ item.tags }}">
+    <i class="bi bi-info-circle"></i> {{ item.text }}
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}

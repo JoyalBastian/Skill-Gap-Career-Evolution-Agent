@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import ListView
 
-from ai_engine.llm_client import GeminiUnavailable, user_message_for
+from ai_engine.llm_client import GeminiUnavailable, flash_ai_error, user_message_for
 from apps.users.mixins import JourneyGatedViewMixin
 from services.career_prediction_service import CareerPredictionService
 from services.roadmap_service import RoadmapService
@@ -39,7 +39,7 @@ class CareerPredictionsView(JourneyGatedViewMixin, LoginRequiredMixin, View):
             CareerPredictionService().run_prediction(request.user.id)
             messages.success(request, "Career predictions updated.")
         except GeminiUnavailable as e:
-            messages.error(request, user_message_for(e))
+            flash_ai_error(request, e)
         return redirect("careers:predictions")
 
 
@@ -68,5 +68,5 @@ class CareerDetailView(JourneyGatedViewMixin, LoginRequiredMixin, View):
             SkillGapService().analyze_gaps(request.user.id, career.id)
             messages.success(request, f"Skill gap analysis completed for {career.name}.")
         except GeminiUnavailable as e:
-            messages.error(request, user_message_for(e))
+            flash_ai_error(request, e)
         return redirect("careers:detail", slug=slug)

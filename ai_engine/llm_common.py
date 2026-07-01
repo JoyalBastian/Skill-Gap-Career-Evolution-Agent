@@ -19,7 +19,6 @@ _GEMINI_QUOTA_DOC_URL = "https://ai.google.dev/gemini-api/docs/rate-limits"
 DEFAULT_TEMPERATURE = 0.4
 DEFAULT_MAX_OUTPUT_TOKENS = 2048
 
-
 @dataclass
 class GenConfig:
     temperature: float = DEFAULT_TEMPERATURE
@@ -86,6 +85,27 @@ class LLMUnavailable(RuntimeError):
                 "Analysis is temporarily unavailable. "
                 "Please try again in a moment."
             )
+        msg = str(self).lower()
+        if "gemini_api_key is not set" in msg:
+            return (
+                "Resume analysis requires a Gemini API key. "
+                "Set GEMINI_API_KEY in your server configuration."
+            )
+        if (
+            self.code == 400
+            or "api_key_invalid" in msg
+            or "api key not valid" in msg
+            or "invalid api key" in msg
+        ):
+            return (
+                "Resume analysis could not reach Gemini — the API key is invalid. "
+                "Check GEMINI_API_KEY in your server configuration."
+            )
+        if "not valid json" in msg or "truncated" in msg:
+            return (
+                "Resume analysis received an incomplete response from Gemini. "
+                "Please try uploading again."
+            )
         if self.is_transient or self.code in (502, 503, 504):
             return (
                 "The service is temporarily busy due to high demand. "
@@ -123,6 +143,21 @@ def user_message_for(exc: BaseException) -> str:
     return str(exc) or "Analysis is temporarily unavailable."
 
 
+def flash_ai_error(request, exc: BaseException, *, suffix: str = "") -> None:
+    """Queue a single user-facing AI error (skip duplicate text already queued)."""
+    from django.contrib import messages
+
+    text = user_message_for(exc) + suffix
+    queued = getattr(request, "_ai_error_texts", None)
+    if queued is None:
+        queued = set()
+        request._ai_error_texts = queued
+    if text in queued:
+        return
+    queued.add(text)
+    messages.error(request, text)
+
+
 def hash_prompt(prompt: str, provider: str, model: str, gen: GenConfig) -> str:
     h = hashlib.sha256()
     h.update(provider.encode("utf-8"))
@@ -130,7 +165,7 @@ def hash_prompt(prompt: str, provider: str, model: str, gen: GenConfig) -> str:
     h.update(model.encode("utf-8"))
     h.update(b"::")
     h.update(prompt.encode("utf-8"))
-    h.update(f":t={gen.temperature}:j={gen.json_mode}".encode("utf-8"))
+    h.update(f":t={gen.temperature}:j={gen.json_mode}:n={gen.max_output_tokens}".encode("utf-8"))
     return h.hexdigest()
 
 

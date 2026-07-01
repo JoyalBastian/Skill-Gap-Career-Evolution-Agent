@@ -8,7 +8,7 @@ from django.db import IntegrityError, connection, transaction
 from django.db.models import Max
 from django.utils import timezone
 
-from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, active_provider
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, active_provider, analysis_provider
 from ai_engine.question_generator import (
     MAX_QUESTIONS,
     get_first_question,
@@ -21,6 +21,20 @@ logger = logging.getLogger(__name__)
 
 _pipeline_lock = threading.Lock()
 _pipeline_running_users: set[int] = set()
+
+PIPELINE_STEP_DEFS: list[tuple[str, str]] = [
+    ("persona", "Understanding your profile"),
+    ("predictions", "Career predictions"),
+    ("gap", "Skill gap report"),
+    ("recs", "Courses for skill gaps"),
+    ("roadmap", "Learning roadmap"),
+]
+
+STEP_STATUS_PENDING = "pending"
+STEP_STATUS_PROCESSING = "processing"
+STEP_STATUS_COMPLETED = "completed"
+STEP_STATUS_FAILED = "failed"
+STEP_STATUS_SKIPPED = "skipped"
 
 
 class QuestionnaireService:
@@ -208,9 +222,72 @@ class QuestionnaireService:
         session.save(update_fields=["status", "completed_at"])
         return session
 
+    @staticmethod
+    def _default_steps(status: str = STEP_STATUS_PENDING) -> list[dict]:
+        return [
+            {"key": key, "label": label, "status": status}
+            for key, label in PIPELINE_STEP_DEFS
+        ]
+
+    def _init_pipeline_steps(self, session_id: int) -> None:
+        session = QuestionnaireSession.objects.get(id=session_id)
+        session.pipeline_state = {
+            "steps": self._default_steps(),
+            "updated_at": timezone.now().isoformat(),
+        }
+        session.save(update_fields=["pipeline_state"])
+
+    def _set_step(self, session_id: int, key: str, status: str) -> None:
+        session = QuestionnaireSession.objects.get(id=session_id)
+        state = dict(session.pipeline_state or {})
+        steps = list(state.get("steps") or self._default_steps())
+        for step in steps:
+            if step["key"] == key:
+                step["status"] = status
+                break
+        state["steps"] = steps
+        state["updated_at"] = timezone.now().isoformat()
+        session.pipeline_state = state
+        session.save(update_fields=["pipeline_state"])
+
+    def get_pipeline_progress(self, session: QuestionnaireSession) -> list[dict]:
+        state = session.pipeline_state or {}
+        steps = state.get("steps")
+        if steps:
+            return list(steps)
+
+        artifact_status = self.get_pipeline_status(session.user)
+        artifact_map = {
+            "predictions": artifact_status["predictions_ok"],
+            "gap": artifact_status["gap_ok"],
+            "recs": artifact_status["recs_ok"],
+            "roadmap": artifact_status["roadmap_ok"],
+        }
+        fallback: list[dict] = []
+        any_artifact = any(artifact_map.values())
+        for key, label in PIPELINE_STEP_DEFS:
+            if key == "persona":
+                ok = any_artifact or self.pipeline_is_complete(artifact_status)
+            else:
+                ok = artifact_map.get(key, False)
+            status = STEP_STATUS_COMPLETED if ok else STEP_STATUS_PENDING
+            fallback.append({"key": key, "label": label, "status": status})
+        return fallback
+
+    @staticmethod
+    def progress_is_complete(steps: list[dict]) -> bool:
+        if not steps:
+            return False
+        return all(
+            step.get("status") not in (STEP_STATUS_PENDING, STEP_STATUS_PROCESSING)
+            for step in steps
+        )
+
     def run_analysis_pipeline(self, session_id: int) -> QuestionnaireSession:
-        """Run post-interview AI analysis (multiple LLM calls — keep off request thread)."""
-        if active_provider() == "ollama":
+        """Run post-interview AI analysis sequentially (one model task at a time)."""
+        if analysis_provider() == "ollama" or (
+            analysis_provider() == "gemini" and active_provider() == "ollama"
+        ):
             from ai_engine.ollama_client import warmup_model
             warmup_model()
 
@@ -223,49 +300,99 @@ class QuestionnaireService:
         from services.user_understanding_service import UserUnderstandingService
 
         uus = UserUnderstandingService()
+        gap_analyzed = False
+
+        self._set_step(session_id, "persona", STEP_STATUS_PROCESSING)
         try:
             uus.build_user_persona(session.user_id)
+            self._set_step(session_id, "persona", STEP_STATUS_COMPLETED)
         except LLMUnavailable as e:
             logger.warning("Persona build failed, using local fallback: %s", e)
             if session.ai_answers.count() >= 3:
-                uus.build_local_persona_fallback(session.user_id, session_id=session.id)
+                try:
+                    uus.build_local_persona_fallback(session.user_id, session_id=session.id)
+                    self._set_step(session_id, "persona", STEP_STATUS_COMPLETED)
+                except Exception:
+                    logger.exception("Local persona fallback failed for user=%s", session.user_id)
+                    self._set_step(session_id, "persona", STEP_STATUS_FAILED)
+            else:
+                self._set_step(session_id, "persona", STEP_STATUS_FAILED)
 
+        self._set_step(session_id, "predictions", STEP_STATUS_PROCESSING)
         try:
             CareerPredictionService().run_prediction(session.user_id)
+            self._set_step(session_id, "predictions", STEP_STATUS_COMPLETED)
         except LLMUnavailable as e:
             logger.warning("Career prediction failed for user=%s: %s", session.user_id, e)
+            try:
+                CareerPredictionService().build_local_prediction_fallback(session.user_id)
+                self._set_step(session_id, "predictions", STEP_STATUS_COMPLETED)
+            except Exception:
+                logger.exception(
+                    "Local career prediction fallback failed for user=%s",
+                    session.user_id,
+                )
+                self._set_step(session_id, "predictions", STEP_STATUS_FAILED)
 
+        session = QuestionnaireSession.objects.select_related("user").get(id=session_id)
         prediction = session.user.career_predictions.order_by("rank").first()
-        gap_analyzed = False
-        if prediction:
+        if not prediction:
+            self._set_step(session_id, "gap", STEP_STATUS_SKIPPED)
+            self._set_step(session_id, "recs", STEP_STATUS_SKIPPED)
+        else:
+            self._set_step(session_id, "gap", STEP_STATUS_PROCESSING)
             try:
                 SkillGapService().analyze_gaps(session.user_id, prediction.career_id)
                 gap_analyzed = True
-            except LLMUnavailable as e:
-                logger.warning("Skill gap analysis failed for user=%s: %s", session.user_id, e)
-
-        rec_svc = RecommendationService()
-        if gap_analyzed:
-            try:
-                rec_svc.create_placeholder_gap_courses(session.user_id)
+                self._set_step(session_id, "gap", STEP_STATUS_COMPLETED)
             except Exception as e:
-                logger.warning(
-                    "Placeholder courses failed for user=%s: %s",
-                    session.user_id,
-                    e,
-                )
-            rec_svc.start_generate_async(session.user_id, force=True)
+                logger.warning("Skill gap analysis failed for user=%s: %s", session.user_id, e)
+                self._set_step(session_id, "gap", STEP_STATUS_FAILED)
 
+            if gap_analyzed:
+                self._set_step(session_id, "recs", STEP_STATUS_PROCESSING)
+                rec_svc = RecommendationService()
+                try:
+                    rec_svc.create_placeholder_gap_courses(session.user_id)
+                except Exception as e:
+                    logger.warning(
+                        "Placeholder courses failed for user=%s: %s",
+                        session.user_id,
+                        e,
+                    )
+                try:
+                    rec_svc.generate_gap_targeted_courses(session.user_id)
+                    self._set_step(session_id, "recs", STEP_STATUS_COMPLETED)
+                except Exception as e:
+                    logger.warning(
+                        "Course generation failed for user=%s: %s",
+                        session.user_id,
+                        e,
+                    )
+                    if rec_svc.has_gap_targeted_recommendations(session.user_id):
+                        self._set_step(session_id, "recs", STEP_STATUS_COMPLETED)
+                    else:
+                        self._set_step(session_id, "recs", STEP_STATUS_FAILED)
+            else:
+                self._set_step(session_id, "recs", STEP_STATUS_SKIPPED)
+
+        self._set_step(session_id, "roadmap", STEP_STATUS_PROCESSING)
         try:
-            RoadmapService().generate_roadmap(session.user_id)
-        except LLMUnavailable as e:
+            roadmap = RoadmapService().generate_roadmap(session.user_id)
+            if roadmap:
+                self._set_step(session_id, "roadmap", STEP_STATUS_COMPLETED)
+            else:
+                self._set_step(session_id, "roadmap", STEP_STATUS_FAILED)
+        except Exception as e:
             logger.warning("Roadmap generation failed for user=%s: %s", session.user_id, e)
+            self._set_step(session_id, "roadmap", STEP_STATUS_FAILED)
 
-        return session
+        return QuestionnaireSession.objects.get(id=session_id)
 
     def complete_session(self, session_id: int) -> QuestionnaireSession:
         """Finalize session and run full analysis pipeline synchronously."""
         self.finalize_session(session_id)
+        self._init_pipeline_steps(session_id)
         return self.run_analysis_pipeline(session_id)
 
     @staticmethod
@@ -299,14 +426,17 @@ class QuestionnaireService:
         """
         session = QuestionnaireSession.objects.select_related("user").get(id=session_id)
         user_id = session.user_id
-        status = self.get_pipeline_status(session.user)
-        if self.pipeline_is_complete(status):
+        steps = self.get_pipeline_progress(session)
+        artifact_status = self.get_pipeline_status(session.user)
+        if self.progress_is_complete(steps) and self.pipeline_is_complete(artifact_status):
             return "done"
 
         with _pipeline_lock:
             if user_id in _pipeline_running_users:
                 return "running"
             _pipeline_running_users.add(user_id)
+
+        self._init_pipeline_steps(session_id)
 
         def _run() -> None:
             try:

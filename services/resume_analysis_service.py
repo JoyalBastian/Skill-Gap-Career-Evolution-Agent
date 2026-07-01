@@ -7,8 +7,14 @@ reference stable IDs.
 from __future__ import annotations
 
 import logging
+import threading
 
-from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, chat_json
+from ai_engine.llm_client import (
+    GeminiUnavailable,
+    LLMUnavailable,
+    chat_json,
+    user_message_for,
+)
 from ai_engine.resume_analysis.pdf_parser import extract_text_from_pdf
 from apps.skills.models import ResumeAnalysisResult, Skill, UserSkill
 from apps.users.models import Profile, ResumeUpload
@@ -16,6 +22,10 @@ from services.dto import ResumeAnalysisDTO
 from services.skill_utils import ensure_skill
 
 logger = logging.getLogger(__name__)
+
+_resume_lock = threading.Lock()
+_processing_resume_ids: set[int] = set()
+_resume_errors: dict[int, str] = {}
 
 _SCHEMA_PROMPT = """Extract structured information from this resume text.
 
@@ -41,16 +51,49 @@ Respond ONLY with valid JSON in this exact format:
   "employability_score": number from 0 to 100,
   "projects": ["short list of notable project names/descriptions"]
 }}
+
+RULES:
+- Return ONE complete JSON object only (no markdown fences).
+- Limit skills to the 20 most important; skill_details to top 15; education to 5 entries; projects to 5.
+- Keep summary under 80 words. Omit empty fields as "" or [].
 """
 
 
-def _extract_with_gemini(text: str) -> dict:
-    """Use Gemini to extract structured profile data from resume text."""
-    prompt = _SCHEMA_PROMPT.format(text=text[:6000])
-    data = chat_json(prompt)
-    if not isinstance(data, dict):
-        raise GeminiUnavailable("Resume extraction did not return a JSON object.")
-    return data
+def _is_truncated_json_error(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return "not valid json" in msg or "truncated" in msg
+
+
+def _extract_with_gemini(text: str, *, resume_id: int | None = None) -> dict:
+    """Extract structured profile data from resume text using Gemini only."""
+    prompt = _SCHEMA_PROMPT.format(text=text[:4000])
+    cache_key = f"resume-extract:{resume_id}" if resume_id else None
+    token_limits = [2048, 3072]
+    last_exc: BaseException | None = None
+
+    for max_tokens in token_limits:
+        try:
+            data = chat_json(
+                prompt,
+                max_output_tokens=max_tokens,
+                provider="gemini",
+                allow_fallback=False,
+                cache_key=cache_key,
+            )
+            if not isinstance(data, dict):
+                raise GeminiUnavailable("Resume extraction did not return a JSON object.")
+            return data
+        except LLMUnavailable as exc:
+            last_exc = exc
+            if not _is_truncated_json_error(exc) or max_tokens == token_limits[-1]:
+                raise
+            logger.warning(
+                "Resume JSON truncated at %s tokens (resume=%s); retrying with more.",
+                max_tokens,
+                resume_id,
+            )
+
+    raise last_exc or GeminiUnavailable("Resume extraction failed.")
 
 
 def _clip_prof(value, lo: int = 1, hi: int = 5) -> int:
@@ -75,7 +118,7 @@ class ResumeAnalysisService:
             if not text or not text.strip():
                 raise GeminiUnavailable("No text could be extracted from the PDF.")
 
-            data = _extract_with_gemini(text)
+            data = _extract_with_gemini(text, resume_id=resume_id)
 
             skills_list = data.get("skills") or []
             skill_details = data.get("skill_details") or []
@@ -158,7 +201,8 @@ class ResumeAnalysisService:
                 self._run_pipeline(resume.user)
 
             resume.status = "completed"
-            resume.save(update_fields=["status"])
+            resume.error_message = ""
+            resume.save(update_fields=["status", "error_message"])
 
             return ResumeAnalysisDTO(
                 skills_detected=skills_detected,
@@ -169,10 +213,60 @@ class ResumeAnalysisService:
             )
 
         except Exception as e:
+            error_text = user_message_for(e)
             resume.status = "failed"
-            resume.save(update_fields=["status"])
+            resume.error_message = error_text
+            resume.save(update_fields=["status", "error_message"])
+            _resume_errors[resume_id] = error_text
             logger.error("Resume analysis failed: %s", e)
             raise
+
+    def is_processing(self, resume_id: int) -> bool:
+        with _resume_lock:
+            return resume_id in _processing_resume_ids
+
+    def get_processing_resume_id(self, user_id: int) -> int | None:
+        resume = (
+            ResumeUpload.objects.filter(user_id=user_id, status="processing")
+            .order_by("-uploaded_at")
+            .first()
+        )
+        return resume.id if resume else None
+
+    def get_status(self, resume_id: int, user_id: int) -> dict:
+        resume = ResumeUpload.objects.filter(pk=resume_id, user_id=user_id).first()
+        if not resume:
+            return {"status": "missing", "processing": False, "error": ""}
+        processing = resume.status == "processing" or self.is_processing(resume_id)
+        return {
+            "status": resume.status,
+            "processing": processing,
+            "error": resume.error_message or _resume_errors.get(resume_id, ""),
+        }
+
+    def start_process_async(self, resume_id: int) -> str:
+        with _resume_lock:
+            if resume_id in _processing_resume_ids:
+                return "running"
+            _processing_resume_ids.add(resume_id)
+        _resume_errors.pop(resume_id, None)
+
+        def _run() -> None:
+            try:
+                self.process_resume(resume_id)
+                _resume_errors.pop(resume_id, None)
+            except Exception:
+                logger.exception("Background resume analysis failed for resume=%s", resume_id)
+            finally:
+                with _resume_lock:
+                    _processing_resume_ids.discard(resume_id)
+
+        threading.Thread(
+            target=_run,
+            daemon=True,
+            name=f"resume-{resume_id}",
+        ).start()
+        return "started"
 
     def _run_pipeline(self, user):
         from services.career_prediction_service import CareerPredictionService

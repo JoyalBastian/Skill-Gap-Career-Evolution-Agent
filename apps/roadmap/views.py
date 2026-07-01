@@ -4,7 +4,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views import View
 
-from ai_engine.llm_client import LLMUnavailable, user_message_for
+from ai_engine.llm_client import LLMUnavailable, flash_ai_error, user_message_for
 from apps.careers.models import CareerDomain, CareerPrediction
 from apps.skills.models import Skill
 from apps.users.mixins import JourneyGatedViewMixin
@@ -61,7 +61,7 @@ class RoadmapListView(JourneyGatedViewMixin, LoginRequiredMixin, View):
                 level=level,
             )
         except LLMUnavailable as e:
-            messages.error(request, user_message_for(e))
+            flash_ai_error(request, e)
             return redirect("roadmap:list")
 
         if not roadmap:

@@ -6,7 +6,7 @@ from django.views import View
 from django.views.decorators.http import require_POST
 from django.utils.decorators import method_decorator
 
-from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, user_message_for
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, flash_ai_error, user_message_for
 from apps.questionnaire.models import AIQuestion, QuestionnaireSession
 from apps.users.models import Profile
 from services.questionnaire_service import QuestionnaireService
@@ -100,7 +100,7 @@ class QuestionnaireStartView(LoginRequiredMixin, View):
         try:
             session = svc.start_session(request.user)
         except (GeminiUnavailable, LLMUnavailable) as e:
-            messages.error(request, user_message_for(e))
+            flash_ai_error(request, e)
             return redirect("questionnaire:start")
 
         return redirect("questionnaire:question", session_id=session.id)
@@ -171,9 +171,10 @@ class QuestionView(LoginRequiredMixin, View):
         try:
             next_question = svc.generate_next_question(session)
         except (GeminiUnavailable, LLMUnavailable) as e:
-            messages.error(
+            flash_ai_error(
                 request,
-                user_message_for(e) + " Your answer was saved — please refresh to retry.",
+                e,
+                suffix=" Your answer was saved — please refresh to retry.",
             )
             return redirect("questionnaire:question", session_id=session.id)
 
@@ -202,11 +203,13 @@ class PipelineRunView(LoginRequiredMixin, View):
             return JsonResponse({"error": "Interview not finished yet."}, status=400)
         svc = QuestionnaireService()
         state = svc.start_analysis_pipeline_async(session.id)
-        status = svc.get_pipeline_status(request.user)
+        session.refresh_from_db()
+        steps = svc.get_pipeline_progress(session)
         return JsonResponse({
             "state": state,
-            "pipeline_status": status,
-            "complete": svc.pipeline_is_complete(status),
+            "steps": steps,
+            "complete": svc.progress_is_complete(steps),
+            "running": svc.is_pipeline_running(session.user_id),
         })
 
 
@@ -223,10 +226,10 @@ class PipelineStatusView(LoginRequiredMixin, View):
         if session.status != "completed":
             return JsonResponse({"error": "Interview not finished yet."}, status=400)
         svc = QuestionnaireService()
-        status = svc.get_pipeline_status(request.user)
+        steps = svc.get_pipeline_progress(session)
         return JsonResponse({
-            "pipeline_status": status,
-            "complete": svc.pipeline_is_complete(status),
+            "steps": steps,
+            "complete": svc.progress_is_complete(steps),
             "running": svc.is_pipeline_running(session.user_id),
         })
 
@@ -238,6 +241,8 @@ class QuestionnaireCompleteView(LoginRequiredMixin, View):
         session = get_object_or_404(QuestionnaireSession, id=session_id, user=request.user)
         session = _ensure_session_finalized(session)
         svc = QuestionnaireService()
+        pipeline_steps = svc.get_pipeline_progress(session)
+        pipeline_complete = svc.progress_is_complete(pipeline_steps)
         pipeline_status = svc.get_pipeline_status(request.user)
         from apps.careers.models import SkillGapReport
 
@@ -248,8 +253,9 @@ class QuestionnaireCompleteView(LoginRequiredMixin, View):
         )
         return render(request, self.template_name, {
             "session": session,
+            "pipeline_steps": pipeline_steps,
             "pipeline_status": pipeline_status,
-            "pipeline_complete": svc.pipeline_is_complete(pipeline_status),
+            "pipeline_complete": pipeline_complete,
             "pipeline_running": svc.is_pipeline_running(request.user.id),
             "has_gaps": has_gaps,
         })

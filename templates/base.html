@@ -95,16 +95,8 @@
     </aside>
 
     <main class="app-main" id="mainContent">
-        {% include "partials/_error_banner.html" %}
-        {% if messages %}
-        {% for message in messages %}
-        {% if message.tags != "error" %}
-        <div class="alert alert-{{ message.tags }}">
-            <i class="bi bi-info-circle"></i> {{ message }}
-        </div>
-        {% endif %}
-        {% endfor %}
-        {% endif %}
+        {% load message_tags %}
+        {% show_messages %}
         {% block content %}{% endblock %}
     </main>
 </div>

@@ -22,7 +22,40 @@ class ProgressService:
         )
         return entry
 
-    def mark_skill_complete(self, user_id: int, skill_id: int) -> ProgressEntry:
+    def is_skill_acquired(self, user_id: int, skill_id: int) -> bool:
+        ct = ContentType.objects.get_for_model(Skill)
+        return ProgressEntry.objects.filter(
+            user_id=user_id,
+            content_type=ct,
+            object_id=skill_id,
+            is_completed=True,
+        ).exists()
+
+    def mark_skill_acquired(
+        self,
+        user_id: int,
+        skill_id: int,
+        *,
+        target_proficiency: int = 5,
+    ) -> ProgressEntry:
+        """Mark a skill as acquired; create UserSkill if missing; upgrade proficiency only."""
+        target_proficiency = max(1, min(5, target_proficiency))
+
+        UserSkill.objects.get_or_create(
+            user_id=user_id,
+            skill_id=skill_id,
+            defaults={
+                "proficiency": target_proficiency,
+                "source": "manual",
+                "confidence": 1.0,
+            },
+        )
+        UserSkill.objects.filter(
+            user_id=user_id,
+            skill_id=skill_id,
+            proficiency__lt=target_proficiency,
+        ).update(proficiency=target_proficiency)
+
         ct = ContentType.objects.get_for_model(Skill)
         entry, _ = ProgressEntry.objects.update_or_create(
             user_id=user_id,
@@ -34,8 +67,10 @@ class ProgressService:
                 "completed_at": timezone.now(),
             },
         )
-        UserSkill.objects.filter(user_id=user_id, skill_id=skill_id).update(proficiency=5)
         return entry
+
+    def mark_skill_complete(self, user_id: int, skill_id: int) -> ProgressEntry:
+        return self.mark_skill_acquired(user_id, skill_id, target_proficiency=5)
 
     def get_overall_progress(self, user_id: int) -> dict:
         from apps.roadmap.models import Roadmap
@@ -72,6 +107,7 @@ class ProgressService:
 
         roadmap_pct = (completed_steps / total_steps * 100) if total_steps else 0
         skills_pct = (completed_skills / total_skills * 100) if total_skills else 0
+        skills_pct = min(100.0, skills_pct)
         rec_total = Recommendation.objects.filter(user_id=user_id).count()
         learning_pct = min(100.0, rec_total * 12.5) if rec_total else 0.0
 

@@ -7,14 +7,24 @@
     <p>We extract your skills and experience so the career interview can focus on goals and interests.</p>
 </div>
 
+{% if processing_resume_id %}
+<div class="alert alert-info" id="resumeProcessingBanner" style="margin-bottom:20px;">
+    <i class="bi bi-hourglass-split"></i>
+    Analyzing your resume with Gemini — this usually takes a few seconds.
+</div>
+<div id="resumeProcessingError" class="error-banner" style="display:none;margin-bottom:20px;">
+    <i class="bi bi-exclamation-triangle-fill"></i>
+    <span id="resumeProcessingErrorText"></span>
+</div>
+{% endif %}
+
 <div style="display:grid;grid-template-columns:1fr 340px;gap:24px;align-items:start;">
 
     <div class="card">
         <div class="card-header"><i class="bi bi-file-earmark-person"></i> Resume Upload</div>
         <div class="card-body">
             <form method="post" enctype="multipart/form-data" id="resumeForm"
-                  data-ai-loader="true"
-                  data-ai-stages='["Reading your PDF…","Extracting skills…","Building career insights…","Almost done…"]'>
+                  data-ai-overlay="false">
                 {% csrf_token %}
                 <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
                     <i class="bi bi-cloud-arrow-up" id="uploadIcon"></i>
@@ -95,4 +105,43 @@ input.addEventListener('change', function() {
     }
 });
 </script>
+{% if processing_resume_id %}
+<script>
+(function() {
+    const statusUrl = "{% url 'users:resume_status' processing_resume_id %}";
+    const resultsUrl = "{% url 'users:resume_results' processing_resume_id %}";
+    let attempts = 0;
+    const maxAttempts = 120;
+
+    function poll() {
+        attempts += 1;
+        fetch(statusUrl, { credentials: "same-origin" })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.status === "completed") {
+                    window.location.href = resultsUrl;
+                    return;
+                }
+                if (data.status === "failed") {
+                    const banner = document.getElementById("resumeProcessingBanner");
+                    const err = document.getElementById("resumeProcessingError");
+                    const errText = document.getElementById("resumeProcessingErrorText");
+                    if (banner) banner.style.display = "none";
+                    if (err && errText) {
+                        errText.textContent = data.error || "Resume analysis failed. Please try again.";
+                        err.style.display = "flex";
+                    }
+                    return;
+                }
+                if (attempts >= maxAttempts) return;
+                setTimeout(poll, 3000);
+            })
+            .catch(function() {
+                if (attempts < maxAttempts) setTimeout(poll, 4000);
+            });
+    }
+    poll();
+})();
+</script>
+{% endif %}
 {% endblock %}

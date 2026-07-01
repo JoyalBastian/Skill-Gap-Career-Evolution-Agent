@@ -59,7 +59,7 @@ def _models_to_try() -> list[str]:
 
 
 def _client():
-    api_key = getattr(settings, "GEMINI_API_KEY", "")
+    api_key = (getattr(settings, "GEMINI_API_KEY", "") or "").strip()
     if not api_key:
         raise LLMUnavailable("GEMINI_API_KEY is not set.", provider="gemini")
     try:
@@ -96,6 +96,8 @@ def _parse_api_error(exc: Exception) -> tuple[bool, bool, float | None, int | No
         code = 504
     elif "502" in text:
         code = 502
+    elif "400" in text or "INVALID_ARGUMENT" in upper or "API_KEY_INVALID" in upper:
+        code = 400
     retry_after: float | None = None
     for pattern in (
         r"retry in (\d+(?:\.\d+)?)\s*s",
@@ -159,6 +161,15 @@ def _generate_content(client, model: str, prompt: str, gen: GenConfig):
     return client.models.generate_content(model=model, contents=prompt)
 
 
+def _is_hard_quota_error(exc: Exception) -> bool:
+    """True when free-tier quota is fully exhausted — retrying other models won't help."""
+    text = str(exc)
+    upper = text.upper()
+    return "limit: 0" in text or (
+        "RESOURCE_EXHAUSTED" in upper and "QUOTA" in upper and "FREE_TIER" in upper
+    )
+
+
 def _generate_with_fallback(client, prompt: str, gen: GenConfig) -> str:
     last_exc: Exception | None = None
     models = _models_to_try()
@@ -176,6 +187,12 @@ def _generate_with_fallback(client, prompt: str, gen: GenConfig) -> str:
             except Exception as e:
                 last_exc = e
                 is_quota, is_transient, retry_after, _ = _parse_api_error(e)
+                if is_quota and _is_hard_quota_error(e):
+                    logger.warning(
+                        "Gemini quota exhausted on %s; skipping further Gemini retries.",
+                        m,
+                    )
+                    raise _wrap_error(e) from e
                 retriable = is_quota or is_transient
                 logger.warning(
                     "Gemini call failed (model=%s, attempt=%s/%s): %s",

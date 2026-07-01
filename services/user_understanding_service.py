@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import logging
 
-from ai_engine.llm_client import GeminiUnavailable, chat_json
+from ai_engine.llm_client import GeminiUnavailable, analysis_provider, chat_json
 from apps.questionnaire.models import AIAnswer, QuestionnaireSession
 from apps.users.models import Profile
 
@@ -28,10 +28,20 @@ class UserUnderstandingService:
         prof = Profile.objects.filter(user_id=user_id).first()
         if prof:
             rc = prof.resume_context or {}
+            prep = rc.get("interview_prep") or {}
+            if prep.get("career_goals"):
+                texts.append(f"Career goals: {prep['career_goals']}")
+            if prep.get("focus_areas"):
+                texts.append(f"Focus areas: {prep['focus_areas']}")
+            if prep.get("current_title") or rc.get("current_title"):
+                texts.append(
+                    f"Current role (background only, not a target career): "
+                    f"{prep.get('current_title') or rc.get('current_title')}"
+                )
             if rc.get("summary"):
                 texts.append(rc["summary"])
-            if rc.get("current_title"):
-                texts.append(f"Current role: {rc['current_title']}")
+            if rc.get("current_title") and not prep.get("current_title"):
+                texts.append(f"Current role (background only): {rc['current_title']}")
             if rc.get("skills"):
                 texts.append("Skills: " + ", ".join(rc["skills"]))
             if rc.get("job_titles"):
@@ -103,7 +113,11 @@ class UserUnderstandingService:
             "}"
         )
 
-        data = chat_json(prompt)
+        data = chat_json(
+            prompt,
+            max_output_tokens=2048 if analysis_provider() == "ollama" else None,
+            provider=analysis_provider(),
+        )
         if not isinstance(data, dict):
             raise GeminiUnavailable("Persona builder did not return a JSON object.")
 

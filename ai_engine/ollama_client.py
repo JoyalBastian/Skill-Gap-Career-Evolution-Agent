@@ -105,11 +105,11 @@ def _should_retry(exc: LLMUnavailable, attempt: int, max_attempts: int) -> bool:
     if exc.is_transient:
         return True
     msg = str(exc).lower()
+    if "timed out" in msg or "timeout" in msg:
+        return False
     return any(
         token in msg
         for token in (
-            "timed out",
-            "timeout",
             "empty response",
             "still loading",
             "connection",
@@ -142,6 +142,7 @@ def _chat_request(prompt: str, gen: GenConfig) -> str:
             f"Ollama request timed out after {timeout_seconds()}s. "
             "The model may still be loading — try again.",
             provider="ollama",
+            is_transient=False,
         ) from e
     except requests.RequestException as e:
         raise LLMUnavailable(f"Ollama request failed: {e}", provider="ollama") from e

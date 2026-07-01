@@ -806,12 +806,39 @@ select.form-control, select.form-select { width: 100%; padding: 10px 14px; borde
 .pipeline-checklist li {
     display: flex; align-items: center; gap: 12px;
     padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 14px;
+    transition: background-color 0.2s ease;
+}
+.pipeline-checklist li[data-status="processing"] {
+    background: rgba(79, 70, 229, 0.06);
+    border-radius: 8px;
+    padding-left: 8px;
+    padding-right: 8px;
 }
 .pipeline-checklist li:last-child { border-bottom: none; }
-.pipeline-checklist .status-icon { font-size: 18px; width: 24px; text-align: center; }
-.pipeline-checklist .ok { color: var(--success); }
-.pipeline-checklist .fail { color: var(--danger); }
+.pipeline-checklist .status-icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
+.pipeline-checklist .step-label { flex: 1; font-weight: 500; }
+.pipeline-checklist .step-badge {
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.pipeline-checklist .ok,
+.pipeline-checklist .completed { color: var(--success); }
+.pipeline-checklist .fail,
+.pipeline-checklist .failed { color: var(--danger); }
 .pipeline-checklist .pending { color: var(--text-muted); }
+.pipeline-checklist .processing { color: var(--primary); }
+.pipeline-checklist .skipped { color: var(--text-muted); opacity: 0.75; }
+@keyframes pipeline-spin-keyframes {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+.pipeline-checklist .pipeline-spin,
+.pipeline-spin {
+    display: inline-block;
+    animation: pipeline-spin-keyframes 1s linear infinite;
+}
 
 /* ── Chat ── */
 .chat-container { display: flex; flex-direction: column; max-height: 640px; }

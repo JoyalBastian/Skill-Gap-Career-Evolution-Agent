@@ -11,7 +11,7 @@ import threading
 
 from django.db.models import Q
 
-from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, active_provider, chat_json
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, analysis_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import CareerPrediction, SkillGapReport
 from apps.recommendations.models import LearningResource, Recommendation
@@ -63,7 +63,7 @@ def _valid_url(url: str) -> str:
 
 class RecommendationService:
     def default_top_n(self) -> int:
-        return 4 if active_provider() == "ollama" else 12
+        return 4 if analysis_provider() == "ollama" else 12
 
     def _ollama_max_tokens(self, top_n: int) -> int:
         # Large JSON payloads; 2048 often truncates mid-array on local models.
@@ -176,7 +176,7 @@ class RecommendationService:
             )
 
         attempt_counts = [top_n]
-        if active_provider() == "ollama" and top_n > 3:
+        if analysis_provider() == "ollama" and top_n > 3:
             attempt_counts.append(3)
 
         data = None
@@ -184,11 +184,15 @@ class RecommendationService:
         for attempt_n in attempt_counts:
             max_tokens = (
                 self._ollama_max_tokens(attempt_n)
-                if active_provider() == "ollama"
+                if analysis_provider() == "ollama"
                 else 3072
             )
             try:
-                data = chat_json(build_prompt(attempt_n), max_output_tokens=max_tokens)
+                data = chat_json(
+                    build_prompt(attempt_n),
+                    max_output_tokens=max_tokens,
+                    provider=analysis_provider(),
+                )
                 top_n = attempt_n
                 break
             except LLMUnavailable as e:
@@ -289,10 +293,10 @@ class RecommendationService:
         return created
 
     def _courses_per_skill(self) -> int:
-        return 2 if active_provider() == "ollama" else 3
+        return 2 if analysis_provider() == "ollama" else 3
 
     def _gap_skills_limit(self) -> int:
-        return 3 if active_provider() == "ollama" else 5
+        return 3 if analysis_provider() == "ollama" else 5
 
     def _save_recommendation_item(
         self,
@@ -385,7 +389,7 @@ class RecommendationService:
             levels.append((nxt, False, 0.75))
         gap = req_prof - user_prof
         if (
-            active_provider() != "ollama"
+            analysis_provider() != "ollama"
             and gap >= 3
             and nxt
             and nxt != "advanced"
@@ -570,7 +574,7 @@ class RecommendationService:
     ) -> tuple[dict[str, list[int]], list[int]]:
         """One LLM call for all gap skills (much faster than per-skill calls)."""
         profile_text = UserUnderstandingService().get_user_profile_text(user_id)
-        if active_provider() == "ollama":
+        if analysis_provider() == "ollama":
             profile_text = profile_text[:1200]
 
         skill_blocks: list[str] = []
@@ -627,8 +631,8 @@ class RecommendationService:
             "}"
         )
 
-        max_tokens = 4096 if active_provider() == "ollama" else 6144
-        data = chat_json(prompt, max_output_tokens=max_tokens)
+        max_tokens = 4096 if analysis_provider() == "ollama" else 6144
+        data = chat_json(prompt, max_output_tokens=max_tokens, provider=analysis_provider())
         by_slug: dict[str, list] = {}
         if isinstance(data, dict):
             for block in data.get("skill_courses") or []:
@@ -731,10 +735,10 @@ class RecommendationService:
             "}"
         )
 
-        max_tokens = 2048 if active_provider() == "ollama" else 3072
+        max_tokens = 2048 if analysis_provider() == "ollama" else 3072
         items: list = []
         try:
-            data = chat_json(prompt, max_output_tokens=max_tokens)
+            data = chat_json(prompt, max_output_tokens=max_tokens, provider=analysis_provider())
             if isinstance(data, dict):
                 items = data.get("recommendations") or []
             elif isinstance(data, list):

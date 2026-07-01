@@ -1,19 +1,20 @@
-"""Gemini-only learning roadmap generator.
+"""Learning roadmap generator via configured analysis provider (Gemini or Ollama).
 
-No JSON templates, no fallback default steps. Gemini produces the full
-roadmap given the user profile and target career.
+Produces a personalized roadmap from the user profile and target career.
+Falls back to structured default steps when the LLM response fails.
 """
 from __future__ import annotations
 
 import logging
 import re
 
-from ai_engine.llm_client import GeminiUnavailable, active_provider, chat_json
+from ai_engine.llm_client import LLMUnavailable, analysis_provider, chat_json
 from apps.analytics.models import AIInsight
 from apps.careers.models import CareerDomain, CareerPrediction, SkillGapReport
 from apps.roadmap.models import Roadmap, RoadmapStep
 from apps.skills.models import Skill
 from apps.users.models import Profile
+from services.skill_gap_service import default_skills_for_career
 from services.skill_utils import ensure_skill, humanize_skill_name, normalize_skill_label
 from services.user_understanding_service import UserUnderstandingService
 
@@ -73,6 +74,11 @@ def _is_vague_step(title: str, description: str) -> bool:
     return bool(_VAGUE_STEP_RE.search(text))
 
 
+def _is_truncated_json_error(exc: BaseException) -> bool:
+    msg = str(exc).lower()
+    return "valid json" in msg or "truncated" in msg
+
+
 def _gap_display_names(gap_report: SkillGapReport | None) -> dict[str, str]:
     """Map gap slugs to human-readable skill names from the gap report."""
     names: dict[str, str] = {}
@@ -109,15 +115,21 @@ def _build_gap_section(gap_detail_lines: list[str]) -> str:
 
 
 class RoadmapService:
-    def generate_roadmap(
+    def _target_step_count(self) -> int:
+        return 5 if analysis_provider() == "ollama" else 6
+
+    def _min_valid_steps(self) -> int:
+        return 2 if analysis_provider() == "ollama" else 3
+
+    def _ollama_max_tokens(self, compact: bool) -> int:
+        return 3072 if compact else 4096
+
+    def _resolve_career(
         self,
         user_id: int,
-        career_id: int | None = None,
-        level: str | None = None,
-    ) -> Roadmap | None:
-        profile = Profile.objects.filter(user_id=user_id).first()
-        level = level or (profile.target_career_level if profile else "beginner")
-
+        career_id: int | None,
+        profile: Profile | None,
+    ) -> CareerDomain | None:
         career = None
         if career_id:
             career = CareerDomain.objects.filter(id=career_id).first()
@@ -126,47 +138,33 @@ class RoadmapService:
         if not career:
             prediction = CareerPrediction.objects.filter(user_id=user_id).order_by("rank").first()
             career = prediction.career if prediction else None
-        if not career:
-            logger.info("No career available for user %s; skipping roadmap.", user_id)
-            return None
+        return career
 
-        gap_report = SkillGapReport.objects.filter(user_id=user_id, career=career).first()
-        gap_names_by_slug = _gap_display_names(gap_report)
-        gap_slugs: list[str] = []
-        gap_detail_lines: list[str] = []
-        if gap_report:
-            for s in gap_report.prioritized_skills or []:
-                slg = (s.get("slug") or "").strip()
-                nm = gap_names_by_slug.get(slg) or humanize_skill_name(
-                    s.get("skill") or s.get("skill_name") or slg
-                )
-                if slg:
-                    gap_slugs.append(slg)
-                if nm:
-                    gap_detail_lines.append(f"- {nm} (priority gap)")
-
-        top_gaps = gap_detail_lines[:5]
-        profile_text = UserUnderstandingService().get_user_profile_text(user_id)
+    def _build_prompt(
+        self,
+        career: CareerDomain,
+        level: str,
+        profile_text: str,
+        top_gaps: list[str],
+        step_count: int,
+    ) -> str:
+        is_ollama = analysis_provider() == "ollama"
         level_hint = _LEVEL_GUIDANCE.get(level, _LEVEL_GUIDANCE["beginner"])
-
-        step_rule = (
-            "1. Generate exactly 5 sequential learning steps ordered from foundational to advanced.\n"
-            if active_provider() == "ollama"
-            else "1. Generate 5-7 sequential learning steps ordered from foundational to advanced.\n"
+        description_rule = (
+            "5. description max 100 characters.\n"
+            if is_ollama
+            else "5. description max 150 characters; be concrete about what the learner will do.\n"
         )
-
-        prompt = (
+        return (
             "You are a career education expert. Create a practical, role-specific learning roadmap.\n\n"
             "STRICT RULES:\n"
-            + step_rule +
-            "2. Each step must include 2-5 skills in the skills array.\n"
-            "3. skills must be learnable topics, tools, or technologies — NEVER job titles "
-            "(e.g. use 'TensorFlow' not 'Machine Learning Engineer').\n"
+            f"1. Generate exactly {step_count} sequential learning steps ordered from foundational to advanced.\n"
+            "2. Each step must include 2-4 skills in the skills array.\n"
+            "3. skills must be learnable topics, tools, or technologies — NEVER job titles.\n"
             "4. estimated_weeks MUST be an integer from 1 to 12 and should increase across steps.\n"
-            "5. description max 150 characters; be concrete about what the learner will do.\n"
+            f"{description_rule}"
             "6. prerequisites must reference title strings from earlier steps in this roadmap.\n"
-            "7. Every step must teach technical skills for the target career — no generic career advice, "
-            "financial growth, or soft motivational filler.\n"
+            "7. Every step must teach skills for the target career — no generic motivational filler.\n"
             f"8. {level_hint}\n"
             + (
                 "9. Include at least one step that explicitly teaches each top priority gap listed below.\n"
@@ -184,7 +182,7 @@ class RoadmapService:
             '  "steps": [\n'
             "    {\n"
             '      "title": "Step title",\n'
-            '      "description": "What to learn and why it matters for this user",\n'
+            '      "description": "What to learn and why",\n'
             '      "estimated_weeks": number,\n'
             '      "skills": ["skill name 1", "skill name 2"],\n'
             '      "prerequisites": ["earlier step title"]\n'
@@ -193,18 +191,64 @@ class RoadmapService:
             "}"
         )
 
-        data = chat_json(
-            prompt,
-            max_output_tokens=4096 if active_provider() == "ollama" else None,
-        )
-        steps_data = []
-        if isinstance(data, dict):
-            steps_data = data.get("steps") or []
-        elif isinstance(data, list):
-            steps_data = data
-        if not steps_data:
-            raise GeminiUnavailable("Gemini returned no roadmap steps.")
+    def _fetch_roadmap_steps(
+        self,
+        career: CareerDomain,
+        level: str,
+        profile_text: str,
+        top_gaps: list[str],
+    ) -> list[dict]:
+        step_counts = [self._target_step_count()]
+        if analysis_provider() == "ollama" and step_counts[0] > 3:
+            step_counts.append(3)
 
+        last_exc: BaseException | None = None
+        for index, step_count in enumerate(step_counts):
+            compact = index > 0
+            prompt = self._build_prompt(career, level, profile_text, top_gaps, step_count)
+            max_tokens = (
+                self._ollama_max_tokens(compact)
+                if analysis_provider() == "ollama"
+                else 4096
+            )
+            try:
+                data = chat_json(
+                    prompt,
+                    max_output_tokens=max_tokens,
+                    provider=analysis_provider(),
+                )
+                steps_data: list = []
+                if isinstance(data, dict):
+                    steps_data = data.get("steps") or []
+                elif isinstance(data, list):
+                    steps_data = data
+                if not steps_data:
+                    raise LLMUnavailable(
+                        "Roadmap generation returned no steps.",
+                        provider=analysis_provider(),
+                    )
+                validated = self._validate_steps(steps_data, level)
+                if len(validated) >= self._min_valid_steps():
+                    return validated
+                raise LLMUnavailable(
+                    "No valid roadmap steps after validation.",
+                    provider=analysis_provider(),
+                )
+            except LLMUnavailable as exc:
+                last_exc = exc
+                if compact:
+                    raise
+                logger.warning(
+                    "Roadmap JSON failed for career=%s; retrying with fewer steps.",
+                    career.name,
+                )
+
+        raise last_exc or LLMUnavailable(
+            "Roadmap generation failed.",
+            provider=analysis_provider(),
+        )
+
+    def _validate_steps(self, steps_data: list, level: str) -> list[dict]:
         validated_steps: list[dict] = []
         for step_data in steps_data:
             if not isinstance(step_data, dict):
@@ -214,6 +258,8 @@ class RoadmapService:
             if not title or _is_vague_step(title, description):
                 continue
             skills = _sanitize_skills(step_data.get("skills") or [])
+            if not skills and analysis_provider() == "ollama":
+                skills = ["Core Concepts"]
             validated_steps.append({
                 "title": title[:255],
                 "description": description[:2000],
@@ -225,11 +271,25 @@ class RoadmapService:
                     if str(p).strip()
                 ],
             })
+        return _order_steps(validated_steps, level)
 
-        validated_steps = _order_steps(validated_steps, level)
-
-        if not validated_steps:
-            raise GeminiUnavailable("No valid roadmap steps after validation.")
+    def _persist_roadmap(
+        self,
+        user_id: int,
+        career: CareerDomain,
+        level: str,
+        validated_steps: list[dict],
+        gap_report: SkillGapReport | None,
+        *,
+        source: str = "llm",
+    ) -> Roadmap:
+        gap_names_by_slug = _gap_display_names(gap_report)
+        gap_slugs: list[str] = []
+        if gap_report:
+            for item in gap_report.prioritized_skills or []:
+                slug = (item.get("slug") or "").strip()
+                if slug:
+                    gap_slugs.append(slug)
 
         Roadmap.objects.filter(user_id=user_id, is_active=True).update(is_active=False)
         roadmap = Roadmap.objects.create(
@@ -290,9 +350,125 @@ class RoadmapService:
         AIInsight.objects.create(
             user_id=user_id,
             insight_type="roadmap",
-            payload={"roadmap_id": roadmap.id, "career": career.name, "level": level},
+            payload={
+                "roadmap_id": roadmap.id,
+                "career": career.name,
+                "level": level,
+                "source": source,
+            },
         )
         return roadmap
+
+    def build_local_roadmap_fallback(
+        self,
+        user_id: int,
+        career: CareerDomain,
+        level: str,
+        gap_report: SkillGapReport | None,
+    ) -> Roadmap:
+        profile = Profile.objects.filter(user_id=user_id).first()
+        gap_skills: list[str] = []
+        if gap_report:
+            for item in (gap_report.prioritized_skills or gap_report.missing_skills or [])[:6]:
+                name = (item.get("skill") or item.get("skill_name") or "").strip()
+                if name:
+                    gap_skills.append(name)
+
+        if not gap_skills:
+            gap_skills = default_skills_for_career(career, profile)
+
+        step_count = 4 if analysis_provider() == "ollama" else 5
+        chunk = max(1, len(gap_skills) // step_count)
+        validated_steps: list[dict] = []
+        titles: list[str] = []
+
+        for index in range(step_count):
+            start = index * chunk
+            end = start + chunk if index < step_count - 1 else len(gap_skills)
+            step_skills = gap_skills[start:end] or gap_skills[:2] or [career.name.split()[0]]
+            if index == 0:
+                title = f"{career.name} Foundations"
+                description = f"Learn core concepts and vocabulary for {career.name}."
+                weeks = 2
+            elif index == step_count - 1:
+                title = f"Advanced {career.name} Practice"
+                description = "Apply advanced techniques and build portfolio-ready work."
+                weeks = min(12, 4 + index * 2)
+            else:
+                title = f"Build {step_skills[0]} Skills"
+                description = f"Hands-on practice with {', '.join(step_skills[:2])}."
+                weeks = 2 + index * 2
+            titles.append(title)
+            validated_steps.append({
+                "title": title,
+                "description": description[:2000],
+                "estimated_weeks": weeks,
+                "skills": step_skills[:4],
+                "prerequisites": [titles[index - 1]] if index > 0 else [],
+            })
+
+        logger.info(
+            "Using local roadmap fallback for user=%s career=%s",
+            user_id,
+            career.name,
+        )
+        return self._persist_roadmap(
+            user_id,
+            career,
+            level,
+            validated_steps,
+            gap_report,
+            source="local_fallback",
+        )
+
+    def generate_roadmap(
+        self,
+        user_id: int,
+        career_id: int | None = None,
+        level: str | None = None,
+    ) -> Roadmap | None:
+        profile = Profile.objects.filter(user_id=user_id).first()
+        level = level or (profile.target_career_level if profile else "beginner")
+        career = self._resolve_career(user_id, career_id, profile)
+        if not career:
+            logger.info("No career available for user %s; skipping roadmap.", user_id)
+            return None
+
+        gap_report = SkillGapReport.objects.filter(user_id=user_id, career=career).first()
+        gap_detail_lines: list[str] = []
+        if gap_report:
+            gap_names = _gap_display_names(gap_report)
+            for item in gap_report.prioritized_skills or []:
+                slug = (item.get("slug") or "").strip()
+                name = gap_names.get(slug) or humanize_skill_name(
+                    item.get("skill") or item.get("skill_name") or slug
+                )
+                if name:
+                    gap_detail_lines.append(f"- {name} (priority gap)")
+
+        profile_text = UserUnderstandingService().get_user_profile_text(user_id)
+        try:
+            validated_steps = self._fetch_roadmap_steps(
+                career,
+                level,
+                profile_text,
+                gap_detail_lines[:5],
+            )
+            return self._persist_roadmap(
+                user_id,
+                career,
+                level,
+                validated_steps,
+                gap_report,
+            )
+        except LLMUnavailable as exc:
+            logger.warning(
+                "Roadmap LLM failed for user=%s career=%s: %s",
+                user_id,
+                career.name,
+                exc,
+            )
+            return self.build_local_roadmap_fallback(user_id, career, level, gap_report)
 
     def get_active_roadmap(self, user_id: int):
         return Roadmap.objects.filter(user_id=user_id, is_active=True).prefetch_related(

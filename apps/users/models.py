@@ -56,6 +56,7 @@ class ResumeUpload(models.Model):
     file = models.FileField(upload_to="resumes/")
     parsed_text = models.TextField(blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    error_message = models.TextField(blank=True, default="")
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

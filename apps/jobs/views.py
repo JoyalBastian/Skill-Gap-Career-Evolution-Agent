@@ -5,7 +5,7 @@ from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 
-from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, user_message_for
+from ai_engine.llm_client import GeminiUnavailable, LLMUnavailable, flash_ai_error, user_message_for
 from apps.careers.models import CareerPrediction
 from apps.users.mixins import JourneyGatedViewMixin
 from services.ats_resume_service import ATSResumeService
@@ -62,6 +62,8 @@ class TrendingJobsView(JourneyGatedViewMixin, LoginRequiredMixin, View):
     def get(self, request):
         svc = TrendingJobsService()
         jobs = list(TrendingJob.objects.all().order_by("-demand_label", "title"))
+        if not jobs:
+            jobs = svc.seed_default_trending_jobs()
         matches = list(
             JobMatch.objects.filter(user=request.user)
             .select_related("job")
@@ -137,7 +139,7 @@ class ATSResumeGenerateView(JourneyGatedViewMixin, LoginRequiredMixin, View):
             ats = svc.generate_for_trending_job(request.user.id, job.id)
             return redirect("jobs:ats_resume_detail", pk=ats.id)
         except (GeminiUnavailable, LLMUnavailable) as e:
-            messages.error(request, user_message_for(e))
+            flash_ai_error(request, e)
             return redirect("jobs:detail", slug=slug)
 
 
@@ -166,7 +168,7 @@ class ATSResumeVacancyGenerateView(LoginRequiredMixin, View):
             )
             return redirect("jobs:ats_resume_detail", pk=ats.id)
         except (GeminiUnavailable, LLMUnavailable) as e:
-            messages.error(request, user_message_for(e))
+            flash_ai_error(request, e)
             return redirect("jobs:openings")
 
 

@@ -148,8 +148,12 @@ REST_FRAMEWORK = {
 # AI provider: gemini (cloud) or ollama (local Docker / ollama serve)
 # ---------------------------------------------------------------------------
 AI_PROVIDER = env("AI_PROVIDER", default="gemini")  # "gemini" | "ollama"
+# Post-interview analysis provider; empty = same as AI_PROVIDER (e.g. ollama interview + gemini analysis)
+ANALYSIS_AI_PROVIDER = env("ANALYSIS_AI_PROVIDER", default="")
+# When Gemini fails (quota/503), fall back to local Ollama if AI_PROVIDER=ollama
+LLM_GEMINI_FALLBACK_OLLAMA = env.bool("LLM_GEMINI_FALLBACK_OLLAMA", default=True)
 
-GEMINI_API_KEY = env("GEMINI_API_KEY", default="")
+GEMINI_API_KEY = (env("GEMINI_API_KEY", default="") or "").strip()
 GEMINI_MODEL = env("GEMINI_MODEL", default="gemini-2.5-flash")
 GEMINI_FALLBACK_MODELS = env(
     "GEMINI_FALLBACK_MODELS",

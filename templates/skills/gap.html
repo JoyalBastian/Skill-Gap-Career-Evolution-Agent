@@ -48,7 +48,12 @@
                 <a href="{% url 'skills:gap_skill' skill.slug %}" style="text-decoration:none;color:inherit;display:block;" title="View recommendations and roadmap for {{ skill.skill }}">
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                     <span style="font-weight:600;font-size:14px;">{{ skill.skill }}</span>
-                    <span class="badge badge-warning">Gap: {{ skill.gap_score|floatformat:0 }}</span>
+                    <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+                        {% if skill.is_acquired %}
+                        <span class="badge badge-success" style="font-size:11px;">Acquired — re-analyze to update</span>
+                        {% endif %}
+                        <span class="badge badge-warning">Gap: {{ skill.gap_score|floatformat:0 }}</span>
+                    </div>
                 </div>
                 {% if skill.user_proficiency is not None %}
                 <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;font-size:12px;color:var(--text-muted);">

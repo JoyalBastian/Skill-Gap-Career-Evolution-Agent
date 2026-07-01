@@ -18,6 +18,18 @@
     <div class="card-body">
         <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap;">
             <span class="badge badge-warning">Priority gap</span>
+            {% if is_acquired %}
+            <span class="badge badge-success">
+                <i class="bi bi-check-circle-fill"></i> Acquired
+            </span>
+            {% elif gap_info %}
+            <form method="post" action="{% url 'skills:gap_skill_acquire' skill.slug %}" style="margin:0;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm">
+                    <i class="bi bi-check-circle"></i> Mark as acquired
+                </button>
+            </form>
+            {% endif %}
             {% if gap_info.gap_score %}
             <span style="font-size:13px;color:var(--text-muted);">Gap score: {{ gap_info.gap_score|floatformat:0 }}</span>
             {% endif %}
@@ -34,6 +46,11 @@
         </div>
         {% if gap_info.explanation %}
         <p style="margin:0;font-size:14px;line-height:1.6;color:var(--text-muted);">{{ gap_info.explanation }}</p>
+        {% endif %}
+        {% if gap_info and not is_acquired %}
+        <p style="margin:8px 0 0;font-size:12px;color:var(--text-muted);">
+            Gap list updates after you re-analyze on Skill Gaps.
+        </p>
         {% endif %}
     </div>
 </div>

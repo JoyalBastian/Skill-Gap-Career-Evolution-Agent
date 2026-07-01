@@ -18,6 +18,7 @@ class QuestionnaireSession(models.Model):
     current_question_order = models.IntegerField(default=0)
     started_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
+    pipeline_state = models.JSONField(default=dict, blank=True)
 
     def __str__(self):
         return f"Session {self.id} - {self.user.username} ({self.status})"

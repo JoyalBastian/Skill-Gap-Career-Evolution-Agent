@@ -24,33 +24,28 @@
     </p>
 
     <div class="card" style="margin-bottom:28px;">
-        <div class="card-header"><i class="bi bi-list-check"></i> Pipeline Status</div>
+        <div class="card-header"><i class="bi bi-list-check"></i> Analysis Progress</div>
         <div class="card-body">
             <ul class="pipeline-checklist" id="pipelineChecklist">
-                <li data-key="predictions_ok">
-                    <span class="status-icon {% if pipeline_status.predictions_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.predictions_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
+                {% for step in pipeline_steps %}
+                <li data-key="{{ step.key }}" data-status="{{ step.status }}">
+                    <span class="status-icon {{ step.status }}">
+                        {% if step.status == "completed" %}
+                        <i class="bi bi-check-circle-fill"></i>
+                        {% elif step.status == "processing" %}
+                        <i class="bi bi-arrow-repeat pipeline-spin"></i>
+                        {% elif step.status == "failed" %}
+                        <i class="bi bi-x-circle"></i>
+                        {% elif step.status == "skipped" %}
+                        <i class="bi bi-dash-circle"></i>
+                        {% else %}
+                        <i class="bi bi-hourglass-split"></i>
+                        {% endif %}
                     </span>
-                    Career predictions
+                    <span class="step-label">{{ step.label }}</span>
+                    <span class="step-badge">{{ step.status|title }}</span>
                 </li>
-                <li data-key="gap_ok">
-                    <span class="status-icon {% if pipeline_status.gap_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.gap_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
-                    </span>
-                    Skill gap report
-                </li>
-                <li data-key="recs_ok">
-                    <span class="status-icon {% if pipeline_status.recs_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.recs_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
-                    </span>
-                    Courses for skill gaps
-                </li>
-                <li data-key="roadmap_ok">
-                    <span class="status-icon {% if pipeline_status.roadmap_ok %}ok{% elif pipeline_complete %}fail{% else %}pending{% endif %}">
-                        <i class="bi bi-{% if pipeline_status.roadmap_ok %}check-circle-fill{% elif pipeline_complete %}x-circle{% else %}hourglass-split{% endif %}"></i>
-                    </span>
-                    Learning roadmap
-                </li>
+                {% endfor %}
             </ul>
             <div class="alert alert-warning" id="pipelineWarning" style="margin:0;{% if pipeline_status.predictions_ok or not pipeline_complete %}display:none;{% endif %}">
                 <i class="bi bi-exclamation-triangle"></i>
@@ -90,69 +85,66 @@
 
     const runUrl = page.dataset.runUrl;
     const statusUrl = page.dataset.statusUrl;
-    const stages = [
-        'Building your profile…',
-        'Generating career matches…',
-        'Analyzing skill gaps…',
-        'Creating courses for skill gaps…',
-        'Building your roadmap…',
-    ];
     let pollTimer = null;
-    let stageTimer = null;
-    let stageIndex = 0;
 
     function getCookie(name) {
         const match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
         return match ? decodeURIComponent(match[2]) : '';
     }
 
-    function showLoader() {
-        if (window.SkillGapUI) window.SkillGapUI.showLoader(stages);
-        stageIndex = 0;
-        if (stageTimer) clearInterval(stageTimer);
-        stageTimer = setInterval(function() {
-            stageIndex = (stageIndex + 1) % stages.length;
-        }, 3000);
-    }
-
-    function hideLoader() {
-        if (stageTimer) clearInterval(stageTimer);
-        const overlay = document.getElementById('aiLoadingOverlay');
-        if (overlay) {
-            overlay.classList.remove('active');
-            overlay.setAttribute('aria-hidden', 'true');
+    function iconForStatus(status) {
+        switch (status) {
+            case 'completed': return 'bi-check-circle-fill';
+            case 'processing': return 'bi-arrow-repeat pipeline-spin';
+            case 'failed': return 'bi-x-circle';
+            case 'skipped': return 'bi-dash-circle';
+            default: return 'bi-hourglass-split';
         }
     }
 
-    function updateRow(key, ok, finished) {
-        const row = document.querySelector('#pipelineChecklist li[data-key="' + key + '"]');
-        if (!row) return;
-        const iconWrap = row.querySelector('.status-icon');
-        const icon = row.querySelector('.status-icon i');
-        if (!iconWrap || !icon) return;
-        iconWrap.classList.remove('ok', 'fail', 'pending');
-        if (ok) {
-            iconWrap.classList.add('ok');
-            icon.className = 'bi bi-check-circle-fill';
-        } else if (finished) {
-            iconWrap.classList.add('fail');
-            icon.className = 'bi bi-x-circle';
-        } else {
-            iconWrap.classList.add('pending');
-            icon.className = 'bi bi-hourglass-split';
+    function badgeLabel(status) {
+        switch (status) {
+            case 'completed': return 'Completed';
+            case 'processing': return 'Processing';
+            case 'failed': return 'Failed';
+            case 'skipped': return 'Skipped';
+            default: return 'Pending';
         }
     }
 
-    function applyStatus(status, complete) {
-        Object.keys(status).forEach(function(key) {
-            updateRow(key, status[key], complete);
+    function renderSteps(steps) {
+        if (!steps || !steps.length) return;
+        steps.forEach(function(step) {
+            const row = document.querySelector('#pipelineChecklist li[data-key="' + step.key + '"]');
+            if (!row) return;
+            row.dataset.status = step.status;
+            const iconWrap = row.querySelector('.status-icon');
+            const icon = row.querySelector('.status-icon i');
+            const badge = row.querySelector('.step-badge');
+            if (iconWrap) {
+                iconWrap.className = 'status-icon ' + step.status;
+            }
+            if (icon) {
+                icon.className = 'bi ' + iconForStatus(step.status);
+            }
+            if (badge) {
+                badge.textContent = badgeLabel(step.status);
+            }
         });
-        if (complete) {
+    }
+
+    function applyResponse(data) {
+        if (!data || !data.steps) return;
+        renderSteps(data.steps);
+        if (data.complete) {
             document.getElementById('completeHeading').textContent = 'Analysis Complete';
             document.getElementById('completeSubtitle').textContent =
                 'Your responses were analyzed. Review what was generated below.';
+            const predictionsStep = data.steps.find(function(s) { return s.key === 'predictions'; });
             const warning = document.getElementById('pipelineWarning');
-            if (warning && !status.predictions_ok) warning.style.display = 'flex';
+            if (warning && predictionsStep && predictionsStep.status === 'failed') {
+                warning.style.display = 'flex';
+            }
         }
     }
 
@@ -160,9 +152,8 @@
         fetch(statusUrl, { credentials: 'same-origin' })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                applyStatus(data.pipeline_status, data.complete);
+                applyResponse(data);
                 if (data.complete) {
-                    hideLoader();
                     if (pollTimer) clearInterval(pollTimer);
                     page.dataset.pipelineComplete = 'true';
                 }
@@ -170,7 +161,6 @@
             .catch(function() {});
     }
 
-    showLoader();
     fetch(runUrl, {
         method: 'POST',
         credentials: 'same-origin',
@@ -178,9 +168,8 @@
     })
         .then(function(r) { return r.json(); })
         .then(function(data) {
-            applyStatus(data.pipeline_status, data.complete);
+            applyResponse(data);
             if (!data.complete) pollTimer = setInterval(pollStatus, 3000);
-            else hideLoader();
         })
         .catch(function() {
             pollTimer = setInterval(pollStatus, 3000);
